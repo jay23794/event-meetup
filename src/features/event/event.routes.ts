@@ -36,6 +36,61 @@ router.use(authMiddleware);
  *                       type: array
  *                       items:
  *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           ownerUserId:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           startDate:
+ *                             type: string
+ *                             format: date-time
+ *                           endDate:
+ *                             type: string
+ *                             format: date-time
+ *                           sheetId:
+ *                             type: string
+ *                           sheetUrl:
+ *                             type: string
+ *                           sheetCreated:
+ *                             type: boolean
+ *                           boothCount:
+ *                             type: number
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *             examples:
+ *               application/json:
+ *                 value:
+ *                   success: true
+ *                   data:
+ *                     events:
+ *                       - _id: "65a1b2c3d4e5f6a7b8c9d0e1"
+ *                         ownerUserId: "65a1b2c3d4e5f6a7b8c9d0e2"
+ *                         name: "Tech Conference 2026"
+ *                         startDate: "2026-06-15T09:00:00Z"
+ *                         endDate: "2026-06-17T17:00:00Z"
+ *                         sheetId: "1a2b3c4d5e6f7a8b9c0d1e2f"
+ *                         sheetUrl: "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7a8b9c0d1e2f"
+ *                         sheetCreated: true
+ *                         boothCount: 12
+ *                         createdAt: "2026-05-01T10:00:00Z"
+ *                         updatedAt: "2026-05-07T15:30:00Z"
+ *                       - _id: "65a1b2c3d4e5f6a7b8c9d0e3"
+ *                         ownerUserId: "65a1b2c3d4e5f6a7b8c9d0e2"
+ *                         name: "Product Summit 2026"
+ *                         startDate: "2026-07-10T09:00:00Z"
+ *                         endDate: "2026-07-12T17:00:00Z"
+ *                         sheetId: null
+ *                         sheetUrl: null
+ *                         sheetCreated: false
+ *                         boothCount: 0
+ *                         createdAt: "2026-05-03T14:20:00Z"
+ *                         updatedAt: "2026-05-03T14:20:00Z"
  *       401:
  *         description: Unauthorized
  */
@@ -67,9 +122,53 @@ router.get('/', controller.listEvents);
  *                 format: date-time
  *             required:
  *               - name
+ *           examples:
+ *             example1:
+ *               value:
+ *                 name: "Annual Expo 2026"
+ *                 startDate: "2026-08-20T09:00:00Z"
+ *                 endDate: "2026-08-22T17:00:00Z"
  *     responses:
  *       201:
  *         description: Event created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     ownerUserId:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     startDate:
+ *                       type: string
+ *                       format: date-time
+ *                     endDate:
+ *                       type: string
+ *                       format: date-time
+ *                     sheetCreated:
+ *                       type: boolean
+ *                     boothCount:
+ *                       type: number
+ *             examples:
+ *               application/json:
+ *                 value:
+ *                   success: true
+ *                   data:
+ *                     _id: "65a1b2c3d4e5f6a7b8c9d0e4"
+ *                     ownerUserId: "65a1b2c3d4e5f6a7b8c9d0e2"
+ *                     name: "Annual Expo 2026"
+ *                     startDate: "2026-08-20T09:00:00Z"
+ *                     endDate: "2026-08-22T17:00:00Z"
+ *                     sheetCreated: false
+ *                     boothCount: 0
  *       400:
  *         description: Validation error
  *       412:
@@ -90,11 +189,56 @@ router.post('/', validate(createEventSchema), controller.createEvent);
  *         required: true
  *         schema:
  *           type: string
+ *           example: "65a1b2c3d4e5f6a7b8c9d0e1"
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Event retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     ownerUserId:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     startDate:
+ *                       type: string
+ *                       format: date-time
+ *                     endDate:
+ *                       type: string
+ *                       format: date-time
+ *                     sheetId:
+ *                       type: string
+ *                     sheetUrl:
+ *                       type: string
+ *                     sheetCreated:
+ *                       type: boolean
+ *                     boothCount:
+ *                       type: number
+ *             examples:
+ *               application/json:
+ *                 value:
+ *                   success: true
+ *                   data:
+ *                     _id: "65a1b2c3d4e5f6a7b8c9d0e1"
+ *                     ownerUserId: "65a1b2c3d4e5f6a7b8c9d0e2"
+ *                     name: "Tech Conference 2026"
+ *                     startDate: "2026-06-15T09:00:00Z"
+ *                     endDate: "2026-06-17T17:00:00Z"
+ *                     sheetId: "1a2b3c4d5e6f7a8b9c0d1e2f"
+ *                     sheetUrl: "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7a8b9c0d1e2f"
+ *                     sheetCreated: true
+ *                     boothCount: 12
  *       404:
  *         description: Event not found
  */
@@ -113,6 +257,7 @@ router.get('/:id', controller.getEvent);
  *         required: true
  *         schema:
  *           type: string
+ *           example: "65a1b2c3d4e5f6a7b8c9d0e1"
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -142,6 +287,17 @@ router.get('/:id', controller.getEvent);
  *                       type: string
  *                       nullable: true
  *                       format: date-time
+ *             examples:
+ *               application/json:
+ *                 value:
+ *                   success: true
+ *                   data:
+ *                     totalBooths: 12
+ *                     totalScans: 34
+ *                     uniqueCompanies: 8
+ *                     uniquePhones: 10
+ *                     boothsWithVoiceNote: 7
+ *                     lastBoothAt: "2026-05-07T15:45:30Z"
  *       404:
  *         description: Event not found
  */

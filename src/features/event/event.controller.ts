@@ -66,4 +66,14 @@ export class EventController {
     await this.service.deleteEvent(id, userId);
     res.status(200).json(ApiResponse.success(null, 'Event deleted'));
   });
+
+  getSummary = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { eventId } = req.params as { eventId?: string };
+    const userId = req.user?.id || '';
+    if (!req.user?.id || !eventId) {
+      return res.status(401).json(ApiResponse.error('Unauthorized'));
+    }
+    const summary = await this.service.getSummary(eventId, userId);
+    res.status(200).json(ApiResponse.success(summary, 'Event summary retrieved'));
+  });
 }

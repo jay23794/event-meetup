@@ -100,6 +100,53 @@ router.post('/', validate(createEventSchema), controller.createEvent);
  */
 router.get('/:id', controller.getEvent);
 
+/**
+ * @swagger
+ * /api/v1/events/{eventId}/summary:
+ *   get:
+ *     tags:
+ *       - Events
+ *     summary: Get event summary with booth statistics
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Event summary retrieved (results cached for 60 seconds)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalBooths:
+ *                       type: number
+ *                     totalScans:
+ *                       type: number
+ *                     uniqueCompanies:
+ *                       type: number
+ *                     uniquePhones:
+ *                       type: number
+ *                     boothsWithVoiceNote:
+ *                       type: number
+ *                     lastBoothAt:
+ *                       type: string
+ *                       nullable: true
+ *                       format: date-time
+ *       404:
+ *         description: Event not found
+ */
+router.get('/:eventId/summary', controller.getSummary);
+
 router.use('/:eventId/booths', boothRoutes);
 
 export default router;

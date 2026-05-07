@@ -1,8 +1,10 @@
 import { EventRepository } from './event.repository';
+import { BoothRepository } from '@/features/booth/booth.repository';
 import { User } from '@/features/auth/auth.model';
 import { ApiError } from '@/shared/utils/ApiError';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { SheetsClient } from '@/shared/google/sheets.client';
+import { CacheService } from '@/shared/cache/cache.service';
 import { CreateEventInput, UpdateEventInput } from './event.schema';
 
 const BOOTH_SHEET_HEADERS = [
@@ -20,9 +22,13 @@ const BOOTH_SHEET_HEADERS = [
 
 export class EventService {
   private repository: EventRepository;
+  private boothRepository: BoothRepository;
+  private cacheService: CacheService;
 
   constructor() {
     this.repository = new EventRepository();
+    this.boothRepository = new BoothRepository();
+    this.cacheService = new CacheService();
   }
 
   async getEvent(id: string, userId: string) {
@@ -101,5 +107,49 @@ export class EventService {
   async deleteEvent(id: string, userId: string) {
     await this.getEvent(id, userId);
     return this.repository.deleteEvent(id);
+  }
+
+  async getSummary(id: string, userId: string) {
+    const event = await this.getEvent(id, userId);
+
+    if (!event.sheetCreated || !event.sheetId) {
+      return {
+        totalBooths: 0,
+        totalScans: 0,
+        uniqueCompanies: 0,
+        uniquePhones: 0,
+        boothsWithVoiceNote: 0,
+        lastBoothAt: null,
+      };
+    }
+
+    const cacheKey = `summary:${id}`;
+    const cachedResult = this.cacheService.get<any>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    try {
+      const user = await User.findById(userId).select('+googleRefreshToken');
+      if (!user?.googleRefreshToken) {
+        throw new ApiError(412, 'Reconnect Google account with Drive permission');
+      }
+
+      const oauthClient = createOAuthClient(user.googleRefreshToken);
+      const sheetsClient = new SheetsClient(oauthClient);
+
+      const summary = await this.boothRepository.computeSummary(sheetsClient, event.sheetId as string);
+      this.cacheService.set(cacheKey, summary, 60);
+
+      return summary;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      if (error instanceof Error && error.message.includes('invalid_grant')) {
+        throw new ApiError(502, 'Google Sheets unavailable', { code: 'GOOGLE_AUTH_EXPIRED' });
+      }
+      throw new ApiError(502, 'Google Sheets unavailable', { code: 'GOOGLE_API_ERROR' });
+    }
   }
 }

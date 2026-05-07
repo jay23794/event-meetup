@@ -1,4 +1,6 @@
 import { Booth, IBooth } from './booth.model';
+import { BoothRow } from './booth.types';
+import { SheetsClient } from '@/shared/google/sheets.client';
 import mongoose from 'mongoose';
 
 export class BoothRepository {
@@ -23,5 +25,108 @@ export class BoothRepository {
 
   async findBoothsByEvent(eventId: string): Promise<IBooth[]> {
     return Booth.find({ eventId: new mongoose.Types.ObjectId(eventId) });
+  }
+
+  async readBoothRows(sheetsClient: SheetsClient, sheetId: string, startRow: number, limit: number): Promise<BoothRow[]> {
+    const endRow = startRow + limit;
+    const range = `Sheet1!A${startRow}:J${endRow}`;
+    const rows = await sheetsClient.readRange(sheetId, range);
+
+    return rows.map((row, index) => {
+      const rowNumber = startRow + index;
+      const [timestamp = '', boothName = '', scanCountStr = '', namesStr = '', phonesStr = '', emailsStr = '', companiesStr = '', rawOcrStr = '', voiceTranscript = '', imageUrlsStr = ''] = row as string[];
+
+      let rawOcr: Array<{ ocrText: string; extractedFields: Record<string, any> }> = [];
+      try {
+        rawOcr = JSON.parse(rawOcrStr || '[]');
+      } catch {
+        rawOcr = [];
+      }
+
+      return {
+        rowNumber,
+        timestamp,
+        boothName: boothName || null,
+        scanCount: parseInt(scanCountStr || '0', 10),
+        names: namesStr ? namesStr.split('; ').filter(Boolean) : [],
+        phones: phonesStr ? phonesStr.split('; ').filter(Boolean) : [],
+        emails: emailsStr ? emailsStr.split('; ').filter(Boolean) : [],
+        companies: companiesStr ? companiesStr.split('; ').filter(Boolean) : [],
+        rawOcr,
+        voiceTranscript: voiceTranscript || null,
+        imageUrls: imageUrlsStr ? imageUrlsStr.split('; ').filter(Boolean) : [],
+      };
+    });
+  }
+
+  async readBoothRow(sheetsClient: SheetsClient, sheetId: string, rowNumber: number): Promise<BoothRow | null> {
+    const range = `Sheet1!A${rowNumber}:J${rowNumber}`;
+    const rows = await sheetsClient.readRange(sheetId, range);
+
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+
+    const row = rows[0] as string[];
+    const [timestamp = '', boothName = '', scanCountStr = '', namesStr = '', phonesStr = '', emailsStr = '', companiesStr = '', rawOcrStr = '', voiceTranscript = '', imageUrlsStr = ''] = row;
+
+    let rawOcr: Array<{ ocrText: string; extractedFields: Record<string, any> }> = [];
+    try {
+      rawOcr = JSON.parse(rawOcrStr || '[]');
+    } catch {
+      rawOcr = [];
+    }
+
+    return {
+      rowNumber,
+      timestamp,
+      boothName: boothName || null,
+      scanCount: parseInt(scanCountStr || '0', 10),
+      names: namesStr ? namesStr.split('; ').filter(Boolean) : [],
+      phones: phonesStr ? phonesStr.split('; ').filter(Boolean) : [],
+      emails: emailsStr ? emailsStr.split('; ').filter(Boolean) : [],
+      companies: companiesStr ? companiesStr.split('; ').filter(Boolean) : [],
+      rawOcr,
+      voiceTranscript: voiceTranscript || null,
+      imageUrls: imageUrlsStr ? imageUrlsStr.split('; ').filter(Boolean) : [],
+    };
+  }
+
+  async computeSummary(sheetsClient: SheetsClient, sheetId: string): Promise<{
+    totalBooths: number;
+    totalScans: number;
+    uniqueCompanies: number;
+    uniquePhones: number;
+    boothsWithVoiceNote: number;
+    lastBoothAt: string | null;
+  }> {
+    const booths = await this.readBoothRows(sheetsClient, sheetId, 2, 10000);
+
+    const uniqueCompaniesSet = new Set<string>();
+    const uniquePhonesSet = new Set<string>();
+    let totalScans = 0;
+    let boothsWithVoiceNote = 0;
+    let lastBoothAt: string | null = null;
+
+    booths.forEach((booth) => {
+      totalScans += booth.scanCount;
+      booth.companies.forEach((company) => uniqueCompaniesSet.add(company));
+      booth.phones.forEach((phone) => uniquePhonesSet.add(phone));
+      if (booth.voiceTranscript) {
+        boothsWithVoiceNote += 1;
+      }
+      if (!lastBoothAt || booth.timestamp > lastBoothAt) {
+        lastBoothAt = booth.timestamp;
+      }
+    });
+
+    return {
+      totalBooths: booths.length,
+      totalScans,
+      uniqueCompanies: uniqueCompaniesSet.size,
+      uniquePhones: uniquePhonesSet.size,
+      boothsWithVoiceNote,
+      lastBoothAt,
+    };
   }
 }

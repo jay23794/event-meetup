@@ -36,5 +36,11 @@ export const updateBoothSchema = z.object({
   boothName: z.string().optional(),
 }).partial();
 
+export const listBoothsQuerySchema = z.object({
+  limit: z.number().min(1).max(200).optional(),
+  cursor: z.number().optional(),
+});
+
 export type CreateBoothInput = z.infer<typeof createBoothSchema>;
 export type UpdateBoothInput = z.infer<typeof updateBoothSchema>;
+export type ListBoothsQuery = z.infer<typeof listBoothsQuerySchema>;

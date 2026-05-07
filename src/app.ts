@@ -14,6 +14,7 @@ import { errorMiddleware } from './shared/middleware/error.middleware';
 import { ApiResponse } from './shared/utils/ApiResponse';
 import authRoutes from './features/auth/auth.routes';
 import eventRoutes from './features/event/event.routes';
+import scanRoutes from './features/scan/scan.routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +78,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.use('/auth', authRoutes);
 app.use('/api/v1/events', eventRoutes);
+app.use('/api/v1/scan', scanRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json(ApiResponse.error('Route not found'));

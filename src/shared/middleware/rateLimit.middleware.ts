@@ -16,3 +16,12 @@ export const createRateLimiter = (
 export const globalLimiter = createRateLimiter();
 
 export const authLimiter = createRateLimiter(15 * 60 * 1000, 5);
+
+export const scanRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => (req as any).user?.id || req.ip,
+  message: 'Too many scans, please slow down',
+  standardHeaders: true,
+  legacyHeaders: false,
+});

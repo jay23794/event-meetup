@@ -14,6 +14,7 @@ const scanSchema = z.object({
   ocrText: z.string(),
   extractedFields: extractedFieldsSchema,
   imageUrl: z.string().url().optional(),
+  driveFileId: z.string().optional(),
 });
 
 const voiceNoteSchema = z.object({

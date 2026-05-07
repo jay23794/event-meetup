@@ -9,6 +9,9 @@ export interface IEvent extends Document {
   sheetUrl?: string;
   sheetCreated: boolean;
   boothCount: number;
+  driveRootFolderId?: string;
+  driveEventFolderId?: string;
+  driveImagesFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +26,9 @@ const eventSchema = new Schema<IEvent>(
     sheetUrl: String,
     sheetCreated: { type: Boolean, default: false },
     boothCount: { type: Number, default: 0 },
+    driveRootFolderId: String,
+    driveEventFolderId: String,
+    driveImagesFolderId: String,
   },
   { timestamps: true }
 );

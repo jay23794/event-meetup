@@ -35,6 +35,9 @@ export class EventRepository {
       sheetId: string;
       sheetUrl: string;
       sheetCreated: boolean;
+      driveRootFolderId: string;
+      driveEventFolderId: string;
+      driveImagesFolderId: string;
     }>
   ): Promise<IEvent | null> {
     return Event.findByIdAndUpdate(id, eventData, { new: true });

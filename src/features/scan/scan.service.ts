@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { anthropic } from '@/config/anthropic';
 import { SCAN_CONFIG } from '@/config/scan';
 import { BUSINESS_CARD_EXTRACTION_PROMPT } from './scan.prompt';
 import { EventRepository } from '@/features/event/event.repository';
@@ -8,7 +8,6 @@ import { ApiError } from '@/shared/utils/ApiError';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { DriveClient } from '@/shared/google/drive.client';
 import { ExtractedFields, ScanResult } from './scan.types';
-import { config } from '@/config/env';
 
 export class ScanService {
   private eventRepository: EventRepository;
@@ -71,27 +70,38 @@ export class ScanService {
     compressedBuffer: Buffer
   ): Promise<{ extractedFields: ExtractedFields; rawText: string }> {
     try {
-      const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: SCAN_CONFIG.GEMINI_MODEL });
+      const base64 = compressedBuffer.toString('base64');
 
-      const base64Image = compressedBuffer.toString('base64');
-
-      const response = await model.generateContent([
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: 'image/jpeg',
+      const response = await anthropic.messages.create({
+        model: SCAN_CONFIG.ANTHROPIC_MODEL,
+        max_tokens: SCAN_CONFIG.ANTHROPIC_MAX_TOKENS,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: 'image/jpeg',
+                  data: base64,
+                },
+              },
+              {
+                type: 'text',
+                text: BUSINESS_CARD_EXTRACTION_PROMPT,
+              },
+            ],
           },
-        },
-        {
-          text: BUSINESS_CARD_EXTRACTION_PROMPT,
-        },
-      ]);
+        ],
+      });
 
-      const result = await response.response;
-      const text = result.text();
+      const textContent = response.content.find((c) => c.type === 'text');
+      if (!textContent || textContent.type !== 'text') {
+        throw new ApiError(502, 'Claude API returned unexpected response');
+      }
 
-      let cleanText = text.replace(/```json|```/g, '').trim();
+      let cleanText = textContent.text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleanText);
 
       return {
@@ -109,10 +119,9 @@ export class ScanService {
     } catch (error) {
       if (error instanceof ApiError) throw error;
       if (error instanceof SyntaxError) {
-        throw new ApiError(502, 'Failed to parse Gemini response', { code: 'INVALID_JSON' });
+        throw new ApiError(502, 'Failed to parse Claude response', { code: 'INVALID_JSON' });
       }
-      console.error('Gemini extraction error:', error);
-      throw new ApiError(502, 'Gemini API unavailable', { code: 'GEMINI_ERROR' });
+      throw new ApiError(502, 'Claude API unavailable', { code: 'ANTHROPIC_ERROR' });
     }
   }
 

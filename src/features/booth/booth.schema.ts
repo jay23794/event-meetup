@@ -1,13 +1,13 @@
 import { z } from 'zod';
 
 const extractedFieldsSchema = z.object({
-  name: z.string().optional(),
-  company: z.string().optional(),
-  title: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional(),
-  website: z.string().url().optional(),
-  address: z.string().optional(),
+  name: z.string().optional().nullable(),
+  company: z.string().optional().nullable(),
+  title: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  website: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
 });
 
 const scanSchema = z.object({

@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -12,6 +14,9 @@ import { errorMiddleware } from './shared/middleware/error.middleware';
 import { ApiResponse } from './shared/utils/ApiResponse';
 import authRoutes from './features/auth/auth.routes';
 import eventRoutes from './features/event/event.routes';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -28,6 +33,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+app.use(express.static(path.join(__dirname, '../public')));
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

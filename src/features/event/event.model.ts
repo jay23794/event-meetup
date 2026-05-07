@@ -5,8 +5,9 @@ export interface IEvent extends Document {
   name: string;
   startDate?: Date;
   endDate?: Date;
-  sheetId: string;
-  sheetUrl: string;
+  sheetId?: string;
+  sheetUrl?: string;
+  sheetCreated: boolean;
   boothCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -18,8 +19,9 @@ const eventSchema = new Schema<IEvent>(
     name: { type: String, required: true },
     startDate: Date,
     endDate: Date,
-    sheetId: { type: String, required: true },
-    sheetUrl: { type: String, required: true },
+    sheetId: String,
+    sheetUrl: String,
+    sheetCreated: { type: Boolean, default: false },
     boothCount: { type: Number, default: 0 },
   },
   { timestamps: true }

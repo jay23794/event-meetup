@@ -1,5 +1,6 @@
 import { BoothRepository } from './booth.repository';
 import { EventRepository } from '@/features/event/event.repository';
+import { EventService } from '@/features/event/event.service';
 import { User } from '@/features/auth/auth.model';
 import { ApiError } from '@/shared/utils/ApiError';
 import { createOAuthClient } from '@/shared/google/oauth.client';
@@ -9,10 +10,12 @@ import { CreateBoothInput } from './booth.schema';
 export class BoothService {
   private repository: BoothRepository;
   private eventRepository: EventRepository;
+  private eventService: EventService;
 
   constructor() {
     this.repository = new BoothRepository();
     this.eventRepository = new EventRepository();
+    this.eventService = new EventService();
   }
 
   async createBooth(userId: string, eventId: string, data: CreateBoothInput) {
@@ -30,6 +33,14 @@ export class BoothService {
     }
 
     try {
+      const eventWithSheet = await this.eventService.ensureSheetCreated(eventId, userId);
+      if (!eventWithSheet) {
+        throw ApiError.internal('Failed to ensure sheet creation');
+      }
+      if (!eventWithSheet.sheetId) {
+        throw ApiError.internal('Sheet ID not set after creation');
+      }
+
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
@@ -57,7 +68,7 @@ export class BoothService {
         imageUrls.join('; '),
       ];
 
-      const { updatedRange } = await sheetsClient.appendRow(event.sheetId, rowValues);
+      const { updatedRange } = await sheetsClient.appendRow(eventWithSheet.sheetId, rowValues);
       const sheetRowNumber = this._extractRowNumber(updatedRange);
 
       const booth = await this.repository.createBooth({

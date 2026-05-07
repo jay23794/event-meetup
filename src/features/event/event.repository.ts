@@ -15,8 +15,9 @@ export class EventRepository {
     name: string;
     startDate?: Date;
     endDate?: Date;
-    sheetId: string;
-    sheetUrl: string;
+    sheetId?: string;
+    sheetUrl?: string;
+    sheetCreated?: boolean;
   }): Promise<IEvent> {
     const event = new Event({
       ...eventData,
@@ -31,6 +32,9 @@ export class EventRepository {
       name: string;
       startDate: Date;
       endDate: Date;
+      sheetId: string;
+      sheetUrl: string;
+      sheetCreated: boolean;
     }>
   ): Promise<IEvent | null> {
     return Event.findByIdAndUpdate(id, eventData, { new: true });

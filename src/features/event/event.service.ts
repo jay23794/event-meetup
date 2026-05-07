@@ -41,6 +41,24 @@ export class EventService {
   }
 
   async createEvent(userId: string, data: CreateEventInput) {
+    const event = await this.repository.createEvent({
+      ownerUserId: userId,
+      name: data.name,
+      startDate: data.startDate ? new Date(data.startDate) : undefined,
+      endDate: data.endDate ? new Date(data.endDate) : undefined,
+      sheetCreated: false,
+    });
+
+    return event;
+  }
+
+  async ensureSheetCreated(eventId: string, userId: string) {
+    const event = await this.getEvent(eventId, userId);
+
+    if (event.sheetCreated) {
+      return event;
+    }
+
     const user = await User.findById(userId).select('+googleRefreshToken');
     if (!user?.googleRefreshToken) {
       throw new ApiError(412, 'Reconnect Google account with Drive permission');
@@ -50,19 +68,16 @@ export class EventService {
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
-      const { sheetId, sheetUrl } = await sheetsClient.createSheet(`${data.name} - Booth Log`);
+      const { sheetId, sheetUrl } = await sheetsClient.createSheet(`${event.name} - Booth Log`);
       await sheetsClient.addHeaderRow(sheetId, BOOTH_SHEET_HEADERS);
 
-      const event = await this.repository.createEvent({
-        ownerUserId: userId,
-        name: data.name,
-        startDate: data.startDate ? new Date(data.startDate) : undefined,
-        endDate: data.endDate ? new Date(data.endDate) : undefined,
+      const updatedEvent = await this.repository.updateEvent(eventId, {
         sheetId,
         sheetUrl,
+        sheetCreated: true,
       });
 
-      return event;
+      return updatedEvent;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;

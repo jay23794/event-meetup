@@ -19,8 +19,9 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     if (!token) {
       throw ApiError.unauthorized('No token provided');
     }
-
+ console.log(token)
     const decoded = jwt.verify(token, config.JWT_SECRET) as TokenPayload;
+   
     req.user = {
       id: decoded.id,
       email: decoded.email,

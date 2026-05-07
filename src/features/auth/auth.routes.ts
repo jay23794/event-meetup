@@ -1,74 +1,9 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
-import { validate } from '@/shared/middleware/validate.middleware';
-import { loginSchema, registerSchema } from './auth.schema';
-import { authLimiter } from '@/shared/middleware/rateLimit.middleware';
+import { authMiddleware } from '@/shared/middleware/auth.middleware';
 
 const router = Router();
 const controller = new AuthController();
-
-/**
- * @swagger
- * /auth/register:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Register a new user
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               # TODO: Define request body
- *     responses:
- *       201:
- *         description: User registered
- *       400:
- *         description: Validation error
- */
-router.post('/register', authLimiter, validate(registerSchema), controller.register);
-
-/**
- * @swagger
- * /auth/login:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Login user
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               # TODO: Define request body
- *     responses:
- *       200:
- *         description: Login successful
- *       401:
- *         description: Invalid credentials
- */
-router.post('/login', authLimiter, validate(loginSchema), controller.login);
-
-/**
- * @swagger
- * /auth/refresh:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Refresh access token
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Token refreshed
- *       401:
- *         description: Unauthorized
- */
-router.post('/refresh', controller.refreshToken);
 
 /**
  * @swagger
@@ -85,6 +20,41 @@ router.post('/refresh', controller.refreshToken);
  *       401:
  *         description: Unauthorized
  */
-router.post('/logout', controller.logout);
+router.post('/logout', authMiddleware, controller.logout);
+
+/**
+ * @swagger
+ * /auth/google:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Initiate Google OAuth flow
+ *     responses:
+ *       302:
+ *         description: Redirect to Google consent screen
+ */
+router.get('/google', controller.googleAuth);
+
+/**
+ * @swagger
+ * /auth/google/callback:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Handle Google OAuth callback
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Authorization code from Google
+ *     responses:
+ *       200:
+ *         description: Authorization successful, returns refresh token
+ *       302:
+ *         description: Redirect on error
+ */
+router.get('/google/callback', controller.googleAuthCallback);
 
 export default router;

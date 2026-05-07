@@ -1,19 +1,24 @@
-import { User } from './auth.model';
+import { User, IUser } from './auth.model';
 
 export class AuthRepository {
-  async findUserByEmail(email: string) {
-    // TODO: Implement findUserByEmail
+  async findUserByEmail(email: string): Promise<IUser | null> {
+    return User.findOne({ email }).select('+password');
   }
 
-  async createUser(userData: unknown) {
-    // TODO: Implement createUser
+  async createUser(userData: { email: string; password: string; name: string }): Promise<IUser> {
+    const user = new User(userData);
+    return user.save();
   }
 
-  async updateUser(id: string, userData: unknown) {
-    // TODO: Implement updateUser
+  async updateUser(id: string, userData: Partial<IUser>): Promise<IUser | null> {
+    return User.findByIdAndUpdate(id, userData, { new: true });
   }
 
-  async deleteUser(id: string) {
-    // TODO: Implement deleteUser
+  async deleteUser(id: string): Promise<IUser | null> {
+    return User.findByIdAndDelete(id);
+  }
+
+  async findUserById(id: string): Promise<IUser | null> {
+    return User.findById(id);
   }
 }

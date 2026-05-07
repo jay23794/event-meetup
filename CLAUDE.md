@@ -53,9 +53,9 @@ src/features/{feature}/
 ```
 
 ### Current Features
-1. **auth** - User registration/login (JWT-based)
-2. **event** - Event CRUD with Google Sheets creation
-3. **booth** - Booth entry logging to event sheet
+1. **auth** - Google OAuth2 sign-in (automatic user creation, JWT generation)
+2. **event** - Event CRUD with lazy Google Sheets creation (sheet created on first booth scan)
+3. **booth** - Booth entry logging with lazy sheet initialization
 
 ### Request Flow
 `routes` → `controller` → `service` → `repository` → `database`
@@ -71,9 +71,13 @@ src/features/{feature}/
 - Google API errors: throw 412 (missing refresh token) or 502 (API unavailable)
 
 ### Authentication
-- JWT-based via `authMiddleware` (Bearer token in Authorization header)
-- Middleware sets `req.user` from decoded token
-- All protected routes require authentication
+- **OAuth-only flow**: Google OAuth2 sign-in at `/auth/google` → callback at `/auth/google/callback`
+- User created automatically on first Google sign-in (email + name extracted from Google ID token)
+- Google refresh token saved to User document on sign-in
+- JWT generated via `generateToken(payload)` in `src/shared/utils/jwt.ts`
+- JWT-based authorization via `authMiddleware` (Bearer token in Authorization header)
+- Middleware decodes JWT and sets `req.user` (id, email, name, role)
+- All protected routes require valid JWT
 - Ownership checks in service methods verify user can access resource
 
 ### Validation
@@ -86,15 +90,37 @@ src/features/{feature}/
 
 ### Architecture
 Three client classes in `src/shared/google/`:
-1. **oauth.client.ts** - Creates OAuth2Client from user's refresh token
+1. **oauth.client.ts** - Creates OAuth2Client from user's refresh token; used to verify ID token
 2. **sheets.client.ts** - Append/read Google Sheets operations
-3. **drive.client.ts** - File creation in user's Drive (currently unused but available)
+3. **drive.client.ts** - File creation in user's Drive (available for future use)
+
+### Sign-In Flow
+1. User visits `/auth.html` → clicks "Sign in with Google"
+2. Redirects to `/auth/google` → Google OAuth consent screen
+3. User grants permissions (userinfo.profile, userinfo.email, drive.file, spreadsheets)
+4. Google redirects to `/auth/google/callback?code=...`
+5. Server exchanges code for tokens
+6. ID token decoded with `verifyIdToken()` to extract user info
+7. User created if new (email + name from ID token, random password hash)
+8. Google refresh token saved to User.googleRefreshToken
+9. JWT generated and returned to client
+
+### Lazy Sheet Creation Pattern
+Sheets are created on-demand when first needed (on first booth scan), not on event creation:
+1. Event created → saved metadata, `sheetCreated: false`
+2. First booth created → calls `EventService.ensureSheetCreated(eventId, userId)`
+3. Check `event.sheetCreated` flag
+4. If false: create sheet "{eventName} - Booth Log", add headers, set flag to true, save sheetId/sheetUrl
+5. Append booth data to sheet
+6. Subsequent booths skip creation check and append directly
+
+This pattern reduces API calls and avoids empty Google Sheets.
 
 ### Key Pattern
-Services call `createOAuthClient(user.googleRefreshToken)` → pass to `SheetsClient`/`DriveClient` → use `.spreadsheets.values.append()` etc.
+Services call `createOAuthClient(user.googleRefreshToken)` → pass to `SheetsClient` → use `.spreadsheets.values.append()` etc.
 
-- Refresh token stored encrypted in User.googleRefreshToken (select: false)
-- New sheets titled "{eventName} - Booth Log" with predefined header row
+- Refresh token stored in User.googleRefreshToken (select: false for security)
+- Sheets titled "{eventName} - Booth Log" with predefined header row
 - All Sheets operations happen in service layer; controllers never call APIs directly
 
 ### Error Cases
@@ -108,8 +134,9 @@ Services call `createOAuthClient(user.googleRefreshToken)` → pass to `SheetsCl
 ```
 email (unique, indexed)
 name
+password (bcrypt-hashed; auto-generated random string on OAuth sign-in)
 role (admin | user, default: user)
-googleRefreshToken (select: false for security)
+googleRefreshToken (string, select: false for security)
 timestamps
 ```
 
@@ -118,11 +145,14 @@ timestamps
 ownerUserId (ref User, indexed)
 name
 startDate, endDate (optional)
-sheetId (string, required)
-sheetUrl (string, required)
+sheetId (string, optional - set on first booth creation)
+sheetUrl (string, optional - set on first booth creation)
+sheetCreated (boolean, default: false - tracks if Google Sheet has been created)
 boothCount (number, default 0, denormalized for fast listing)
 timestamps
 ```
+
+**Note**: Google Sheet is created lazily on first booth scan, not on event creation. This reduces unnecessary API calls and avoids empty sheets.
 
 ### Booth
 ```
@@ -152,14 +182,21 @@ One row per booth visit. Columns:
 
 ## API Endpoints
 
+### Auth
+- `GET /auth/google` - Initiate Google OAuth2 flow (redirects to Google consent screen)
+- `GET /auth/google/callback` - OAuth2 callback handler (creates user if new, returns JWT)
+- `POST /auth/logout` - Logout user (requires auth)
+
+Public UI: `GET /auth.html` - OAuth sign-in page + JWT display
+
 ### Events
-- `GET /api/v1/events` - List user's events
-- `POST /api/v1/events` - Create event (auto-creates sheet)
-- `GET /api/v1/events/:id` - Get single event
+- `GET /api/v1/events` - List user's events (requires JWT)
+- `POST /api/v1/events` - Create event metadata (requires JWT, does NOT create sheet yet)
+- `GET /api/v1/events/:id` - Get single event (requires JWT)
 - Nested: `/api/v1/events/:eventId/booths` (see below)
 
 ### Booths
-- `POST /api/v1/events/:eventId/booths` - Create booth (appends to sheet)
+- `POST /api/v1/events/:eventId/booths` - Create booth entry (requires JWT, triggers sheet creation if first booth)
 
 Routes mounted in `src/app.ts` at `/api/v1/events`.
 
@@ -221,6 +258,24 @@ try {
   }
   throw new ApiError(502, 'Google Sheets unavailable', { code: 'GOOGLE_API_ERROR' });
 }
+```
+
+### Lazy Resource Initialization
+For expensive operations (Google Sheets creation), defer until first use:
+```typescript
+// In EventService
+async ensureSheetCreated(eventId: string, userId: string) {
+  const event = await this.getEvent(eventId, userId);
+  if (event.sheetCreated) return event;
+  
+  // Create sheet only once
+  const { sheetId, sheetUrl } = await sheetsClient.createSheet(...);
+  return this.repository.updateEvent(eventId, { sheetId, sheetUrl, sheetCreated: true });
+}
+
+// In BoothService
+const eventWithSheet = await this.eventService.ensureSheetCreated(eventId, userId);
+// Now safe to use eventWithSheet.sheetId
 ```
 
 ### Ownership Checks

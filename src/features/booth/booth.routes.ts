@@ -3,6 +3,7 @@ import { BoothController } from './booth.controller';
 import { authMiddleware } from '@/shared/middleware/auth.middleware';
 import { validate } from '@/shared/middleware/validate.middleware';
 import { createBoothSchema } from './booth.schema';
+import boothDocumentRoutes from '@/features/boothDocument/boothDocument.routes';
 
 const router = Router({ mergeParams: true });
 const controller = new BoothController();
@@ -16,6 +17,7 @@ router.use(authMiddleware);
  *     tags:
  *       - Booths
  *     summary: List booths for an event
+ *     description: "List all booth visits logged for an event"
  *     parameters:
  *       - in: path
  *         name: eventId
@@ -121,6 +123,7 @@ router.get('/', controller.listBooths);
  *     tags:
  *       - Booths
  *     summary: Get a single booth by row number
+ *     description: "Retrieve details of a specific booth visit"
  *     parameters:
  *       - in: path
  *         name: eventId
@@ -201,6 +204,7 @@ router.get('/:rowNumber', controller.getSingleBooth);
  *     tags:
  *       - Booths
  *     summary: Create booth and append to event sheet
+ *     description: "Log a new booth visit (scans and/or voice notes). First booth creation triggers Google Sheet initialization."
  *     parameters:
  *       - in: path
  *         name: eventId
@@ -323,5 +327,7 @@ router.get('/:rowNumber', controller.getSingleBooth);
  *         description: Google account not connected
  */
 router.post('/', validate(createBoothSchema), controller.createBooth);
+
+router.use('/:boothId/documents', boothDocumentRoutes);
 
 export default router;

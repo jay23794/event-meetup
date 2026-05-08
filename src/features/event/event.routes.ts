@@ -17,6 +17,7 @@ router.use(authMiddleware);
  *     tags:
  *       - Events
  *     summary: List user's events
+ *     description: "List all events owned by the authenticated user"
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -103,6 +104,7 @@ router.get('/', controller.listEvents);
  *     tags:
  *       - Events
  *     summary: Create new event
+ *     description: "Create a new event to track booth visits and document scans"
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -183,6 +185,7 @@ router.post('/', validate(createEventSchema), controller.createEvent);
  *     tags:
  *       - Events
  *     summary: Get event by ID
+ *     description: "Retrieve details for a specific event"
  *     parameters:
  *       - in: path
  *         name: id
@@ -251,6 +254,7 @@ router.get('/:id', controller.getEvent);
  *     tags:
  *       - Events
  *     summary: Get event summary with booth statistics
+ *     description: "Get overview stats (total booths, scans, companies, etc)"
  *     parameters:
  *       - in: path
  *         name: eventId

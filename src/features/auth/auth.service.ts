@@ -80,13 +80,13 @@ export class AuthService {
       const oauthClient = createOAuthClient(refreshToken);
       const driveService = new DriveService(oauthClient);
       console.log('[Auth] Creating/ensuring MeetSync folder for user:', user.email);
-      const meetSyncFolderId = await driveService.ensureMeetSyncFolder(oauthClient, user.driveMeetSyncFolderId);
+      const meetSyncFolderId = await driveService.ensureMeetSyncFolder(oauthClient, user.meetSyncRootFolderId);
       console.log('[Auth] MeetSync folder ID:', meetSyncFolderId);
 
-      if (meetSyncFolderId !== user.driveMeetSyncFolderId) {
+      if (meetSyncFolderId !== user.meetSyncRootFolderId) {
         console.log('[Auth] Updating user with new MeetSync folder ID');
         await this.repository.updateUser(user._id.toString(), {
-          driveMeetSyncFolderId: meetSyncFolderId,
+          meetSyncRootFolderId: meetSyncFolderId,
         });
       }
     } catch (error) {

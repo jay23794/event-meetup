@@ -7,7 +7,12 @@ export interface IUser extends Document {
   password: string;
   role: 'admin' | 'user';
   googleRefreshToken?: string;
-  driveMeetSyncFolderId?: string;
+  meetSyncRootFolderId?: string;
+  myBoothsFolderId?: string;
+  visitedBoothsFolderId?: string;
+  hasCreatedBooth: boolean;
+  hasScannedBooth: boolean;
+  lastActiveAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -20,7 +25,12 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
     googleRefreshToken: { type: String, select: false },
-    driveMeetSyncFolderId: String,
+    meetSyncRootFolderId: String,
+    myBoothsFolderId: String,
+    visitedBoothsFolderId: String,
+    hasCreatedBooth: { type: Boolean, default: false, index: true },
+    hasScannedBooth: { type: Boolean, default: false, index: true },
+    lastActiveAt: Date,
   },
   { timestamps: true }
 );

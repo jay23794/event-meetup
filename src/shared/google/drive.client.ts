@@ -144,4 +144,99 @@ export class DriveClient {
 
     return response.data.webContentLink || response.data.webViewLink || '';
   }
+
+  async ensureRootFolder(oauth: OAuth2Client): Promise<string> {
+    const driveApi = google.drive({ version: 'v3', auth: oauth as any });
+
+    const query = "name='MeetSync' and 'root' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    console.log('[DriveClient] Searching for root MeetSync folder');
+
+    const response = await driveApi.files.list({
+      q: query,
+      fields: 'files(id)',
+      pageSize: 1,
+    });
+
+    const existingFolder = response.data.files?.[0]?.id;
+    if (existingFolder) {
+      console.log('[DriveClient] MeetSync root folder found:', existingFolder);
+      return existingFolder;
+    }
+
+    console.log('[DriveClient] Creating MeetSync root folder');
+    const createResponse = await driveApi.files.create({
+      requestBody: {
+        name: 'MeetSync',
+        mimeType: 'application/vnd.google-apps.folder',
+      },
+      fields: 'id',
+    });
+
+    if (!createResponse.data.id) {
+      throw new Error('Failed to create MeetSync root folder');
+    }
+
+    console.log('[DriveClient] MeetSync root folder created:', createResponse.data.id);
+    return createResponse.data.id;
+  }
+
+  async ensureMyBoothsFolder(oauth: OAuth2Client, rootFolderId: string): Promise<string> {
+    return this.findOrCreateFolder(oauth, 'My Booths', rootFolderId);
+  }
+
+  async ensureEventSubfolder(oauth: OAuth2Client, parentFolderId: string, eventName: string): Promise<string> {
+    const sanitizedName = eventName.replace(/['/]/g, '');
+    return this.findOrCreateFolder(oauth, sanitizedName, parentFolderId);
+  }
+
+  async setPublicPermission(oauth: OAuth2Client, fileId: string): Promise<void> {
+    const driveApi = google.drive({ version: 'v3', auth: oauth as any });
+
+    console.log('[DriveClient] Setting public permission for file:', fileId);
+    await driveApi.permissions.create({
+      fileId,
+      requestBody: {
+        type: 'anyone',
+        role: 'reader',
+      },
+    });
+    console.log('[DriveClient] Public permission set');
+  }
+
+  private async findOrCreateFolder(oauth: OAuth2Client, name: string, parentId: string): Promise<string> {
+    const driveApi = google.drive({ version: 'v3', auth: oauth as any });
+
+    const escapedName = name.replace(/'/g, "\\'");
+    const query = `name='${escapedName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    console.log('[DriveClient] Searching for folder:', { name, parentId });
+
+    const response = await driveApi.files.list({
+      q: query,
+      fields: 'files(id)',
+      pageSize: 1,
+    });
+
+    const existingFolder = response.data.files?.[0]?.id;
+    if (existingFolder) {
+      console.log('[DriveClient] Folder found:', { name, id: existingFolder });
+      return existingFolder;
+    }
+
+    console.log('[DriveClient] Creating folder:', name);
+    const createResponse = await driveApi.files.create({
+      requestBody: {
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentId],
+      },
+      fields: 'id',
+    });
+
+    if (!createResponse.data.id) {
+      throw new Error(`Failed to create folder: ${name}`);
+    }
+
+    console.log('[DriveClient] Folder created:', { name, id: createResponse.data.id });
+    return createResponse.data.id;
+  }
 }

@@ -25,6 +25,8 @@ const voiceNoteSchema = z.object({
 export const createBoothSchema = z
   .object({
     boothName: z.string().optional(),
+    description: z.string().max(5000).optional(),
+    qrId: z.string().optional(),
     scans: z.array(scanSchema).optional().default([]),
     voiceNote: voiceNoteSchema.optional(),
   })
@@ -35,6 +37,7 @@ export const createBoothSchema = z
 
 export const updateBoothSchema = z.object({
   boothName: z.string().optional(),
+  description: z.string().max(5000).optional(),
 }).partial();
 
 export const listBoothsQuerySchema = z.object({

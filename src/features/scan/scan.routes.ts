@@ -14,6 +14,7 @@ const controller = new ScanController();
  *     tags:
  *       - Scan
  *     summary: Process business card image and extract information
+ *     description: "Upload and OCR a scanned business card to extract contact details"
  *     security:
  *       - bearerAuth: []
  *     requestBody:

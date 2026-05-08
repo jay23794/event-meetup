@@ -8,6 +8,9 @@ export class BoothRepository {
     ownerUserId: string;
     eventId: string;
     boothName?: string;
+    description?: string;
+    qrId: string;
+    qrUrl: string;
     scanCount: number;
     hasVoiceNote: boolean;
     sheetRowNumber: number;
@@ -16,6 +19,9 @@ export class BoothRepository {
       ownerUserId: new mongoose.Types.ObjectId(boothData.ownerUserId),
       eventId: new mongoose.Types.ObjectId(boothData.eventId),
       boothName: boothData.boothName,
+      description: boothData.description,
+      qrId: boothData.qrId,
+      qrUrl: boothData.qrUrl,
       scanCount: boothData.scanCount,
       hasVoiceNote: boothData.hasVoiceNote,
       sheetRowNumber: boothData.sheetRowNumber,
@@ -25,6 +31,10 @@ export class BoothRepository {
 
   async findBoothsByEvent(eventId: string): Promise<IBooth[]> {
     return Booth.find({ eventId: new mongoose.Types.ObjectId(eventId) });
+  }
+
+  async findBoothById(boothId: string): Promise<IBooth | null> {
+    return Booth.findById(new mongoose.Types.ObjectId(boothId));
   }
 
   async readBoothRows(sheetsClient: SheetsClient, sheetId: string, startRow: number, limit: number): Promise<BoothRow[]> {

@@ -1,3 +1,4 @@
+import { customAlphabet } from 'nanoid';
 import { BoothRepository } from './booth.repository';
 import { EventRepository } from '@/features/event/event.repository';
 import { EventService } from '@/features/event/event.service';
@@ -6,7 +7,10 @@ import { ApiError } from '@/shared/utils/ApiError';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { SheetsClient } from '@/shared/google/sheets.client';
 import { CacheService } from '@/shared/cache/cache.service';
+import { config } from '@/config/env';
 import { CreateBoothInput, ListBoothsQuery } from './booth.schema';
+
+const generateQrId = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', 10);
 
 export class BoothService {
   private repository: BoothRepository;
@@ -78,10 +82,16 @@ export class BoothService {
       const sheetRowNumber = this._extractRowNumber(updatedRange);
       console.log('[Booth] Row appended successfully');
 
+      const qrId = data.qrId || generateQrId();
+      const qrUrl = `${config.PUBLIC_APP_URL}/scan/${qrId}`;
+
       const booth = await this.repository.createBooth({
         ownerUserId: userId,
         eventId,
         boothName: data.boothName,
+        description: data.description,
+        qrId,
+        qrUrl,
         scanCount,
         hasVoiceNote: !!data.voiceNote,
         sheetRowNumber,
@@ -97,6 +107,8 @@ export class BoothService {
       return {
         boothId: booth._id,
         sheetRowNumber,
+        qrId,
+        qrUrl,
       };
     } catch (error) {
       console.error('[Booth] Error in createBooth:', error instanceof Error ? error.message : error);

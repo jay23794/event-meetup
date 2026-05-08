@@ -4,6 +4,9 @@ export interface IBooth extends Document {
   ownerUserId: mongoose.Types.ObjectId;
   eventId: mongoose.Types.ObjectId;
   boothName?: string;
+  description?: string;
+  qrId: string;
+  qrUrl: string;
   scanCount: number;
   hasVoiceNote: boolean;
   sheetRowNumber: number;
@@ -15,6 +18,9 @@ const boothSchema = new Schema<IBooth>(
     ownerUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true, index: true },
     boothName: String,
+    description: { type: String, maxlength: 5000 },
+    qrId: { type: String, required: true, unique: true, index: true },
+    qrUrl: { type: String, required: true },
     scanCount: { type: Number, default: 0 },
     hasVoiceNote: { type: Boolean, default: false },
     sheetRowNumber: { type: Number, required: true },

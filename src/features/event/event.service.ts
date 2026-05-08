@@ -58,8 +58,8 @@ export class EventService {
 
     try {
       console.log('[EventService] Creating folders for new event:', event._id);
-      const user = await User.findById(userId).select('+googleRefreshToken driveMeetSyncFolderId');
-      if (user?.googleRefreshToken && user.driveMeetSyncFolderId) {
+      const user = await User.findById(userId).select('+googleRefreshToken meetSyncRootFolderId');
+      if (user?.googleRefreshToken && user.meetSyncRootFolderId) {
         const oauthClient = createOAuthClient(user.googleRefreshToken);
         const driveService = new DriveService(oauthClient);
 
@@ -67,7 +67,7 @@ export class EventService {
           oauthClient,
           event.name,
           event._id.toString(),
-          user.driveMeetSyncFolderId
+          user.meetSyncRootFolderId
         );
 
         const boothFolderId = await driveService.ensureBoothFolder(oauthClient, eventFolderId);
@@ -94,11 +94,11 @@ export class EventService {
       return event;
     }
 
-    const user = await User.findById(userId).select('+googleRefreshToken driveMeetSyncFolderId');
+    const user = await User.findById(userId).select('+googleRefreshToken meetSyncRootFolderId');
     if (!user?.googleRefreshToken) {
       throw new ApiError(412, 'Reconnect Google account with Drive permission');
     }
-    if (!user.driveMeetSyncFolderId) {
+    if (!user.meetSyncRootFolderId) {
       throw new ApiError(412, 'MeetSync folder not initialized');
     }
 
@@ -111,7 +111,7 @@ export class EventService {
         oauthClient,
         event.name,
         eventId,
-        user.driveMeetSyncFolderId
+        user.meetSyncRootFolderId
       );
       console.log('[EventService] Event folder created:', eventFolderId);
 

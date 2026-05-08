@@ -9,6 +9,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
   GOOGLE_REDIRECT_URI: z.string().url('Invalid Google redirect URI'),
+  PUBLIC_APP_URL: z.string().url('Invalid PUBLIC_APP_URL'),
   ANTHROPIC_API_KEY: z.string(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });

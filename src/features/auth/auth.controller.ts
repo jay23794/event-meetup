@@ -52,7 +52,8 @@ export class AuthController {
     const { code } = req.query;
 
     if (!code) {
-      return res.redirect('/auth.html?error=No authorization code');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/signin?error=No authorization code`);
     }
 
     try {
@@ -66,7 +67,8 @@ export class AuthController {
       const refreshToken = tokens.refresh_token;
 
       if (!refreshToken) {
-        return res.redirect('/auth.html?error=No refresh token received');
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/signin?error=No refresh token received`);
       }
 
       oauth2Client.setCredentials(tokens);
@@ -79,7 +81,8 @@ export class AuthController {
       const payload = ticket.getPayload();
 
       if (!payload || !payload.email) {
-        return res.redirect('/auth.html?error=Could not get user info from Google');
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/signin?error=Could not get user info from Google`);
       }
 
       const googleUserInfo = {
@@ -90,12 +93,14 @@ export class AuthController {
 
       const result = await this.service.googleSignIn(googleUserInfo, refreshToken);
 
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(
-        `/auth.html?token=${encodeURIComponent(result.token)}&email=${encodeURIComponent(result.user.email)}&name=${encodeURIComponent(result.user.name)}`
+        `${frontendUrl}/signin?jwt=${encodeURIComponent(result.token)}&email=${encodeURIComponent(result.user.email)}&name=${encodeURIComponent(result.user.name)}`
       );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      res.redirect(`/auth.html?error=${encodeURIComponent(errorMsg)}`);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendUrl}/signin?error=${encodeURIComponent(errorMsg)}`);
     }
   });
 }

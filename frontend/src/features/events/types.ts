@@ -3,6 +3,7 @@ export interface Event {
   name: string
   startDate?: string
   endDate?: string
+  eventLink?: string
   sheetId?: string
   sheetUrl?: string
   sheetCreated: boolean
@@ -18,6 +19,5 @@ export interface EventDetail extends Event {
 
 export interface CreateEventInput {
   name: string
-  startDate?: string
-  endDate?: string
+  eventLink?: string
 }

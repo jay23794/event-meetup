@@ -1,4 +1,5 @@
-import { Card, CardBody, Heading, Text, VStack, HStack, Box } from '@chakra-ui/react'
+import { Card, CardBody, Heading, Text, VStack, HStack, Box, Link, Icon } from '@chakra-ui/react'
+import { FiExternalLink } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { formatDate, formatRelativeTime } from '../../../shared/utils/formatDate'
 import { Event } from '../types'
@@ -32,6 +33,23 @@ export function EventCard({ event }: EventCardProps) {
               {formatDate(event.startDate)}
               {event.endDate && ` - ${formatDate(event.endDate)}`}
             </Text>
+          )}
+
+          {event.eventLink && (
+            <Link
+              href={event.eventLink}
+              isExternal
+              fontSize="sm"
+              color="blue.600"
+              onClick={(e) => e.stopPropagation()}
+              noOfLines={1}
+              maxW="full"
+            >
+              <HStack spacing={1}>
+                <Icon as={FiExternalLink} />
+                <Text noOfLines={1}>{event.eventLink}</Text>
+              </HStack>
+            </Link>
           )}
 
           <HStack spacing={4} fontSize="sm">

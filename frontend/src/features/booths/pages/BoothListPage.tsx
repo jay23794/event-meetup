@@ -6,6 +6,7 @@ import { BoothDetailModal } from '../components/BoothDetailModal'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { ErrorMessage } from '../../../shared/components/ErrorMessage'
 import { EmptyState } from '../../../shared/components/EmptyState'
+import { Booth } from '../types'
 
 interface BoothListPageProps {
   eventId: string
@@ -13,21 +14,21 @@ interface BoothListPageProps {
 
 export function BoothListPage({ eventId }: BoothListPageProps) {
   const [cursor, setCursor] = useState<string | undefined>()
-  const [selectedRowNumber, setSelectedRowNumber] = useState<number | null>(null)
+  const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null)
   const { isOpen, onOpen, onClose } = useDisclosure()
   const { booths, nextCursor, total, isLoading, error, hasNextPage } = useBooths(
     eventId,
     cursor
   )
 
-  const handleBoothClick = (rowNumber: number) => {
-    setSelectedRowNumber(rowNumber)
+  const handleBoothClick = (booth: Booth) => {
+    setSelectedBooth(booth)
     onOpen()
   }
 
   const handleModalClose = () => {
     onClose()
-    setSelectedRowNumber(null)
+    setSelectedBooth(null)
   }
 
   if (isLoading && !booths.length) {
@@ -58,9 +59,9 @@ export function BoothListPage({ eventId }: BoothListPageProps) {
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
           {booths.map((booth) => (
             <BoothCard
-              key={booth.id}
+              key={booth.rowNumber}
               booth={booth}
-              onClick={() => handleBoothClick(booth.sheetRowNumber)}
+              onClick={() => handleBoothClick(booth)}
             />
           ))}
         </SimpleGrid>
@@ -80,8 +81,7 @@ export function BoothListPage({ eventId }: BoothListPageProps) {
       <BoothDetailModal
         isOpen={isOpen}
         onClose={handleModalClose}
-        eventId={eventId}
-        rowNumber={selectedRowNumber}
+        booth={selectedBooth}
       />
     </>
   )

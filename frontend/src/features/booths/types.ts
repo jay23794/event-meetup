@@ -1,16 +1,11 @@
-export interface Booth {
-  id: string
-  eventId: string
-  boothName?: string
-  scanCount: number
-  hasVoiceNote: boolean
-  sheetRowNumber: number
-  createdAt: string
-}
-
-export interface CreateBoothInput {
-  boothName?: string
-  scans: ScanData[]
+export interface ExtractedFields {
+  name?: string | null
+  company?: string | null
+  title?: string | null
+  phone?: string | null
+  email?: string | null
+  website?: string | null
+  address?: string | null
 }
 
 export interface ScanData {
@@ -20,12 +15,21 @@ export interface ScanData {
   driveFileId?: string
 }
 
-export interface ExtractedFields {
-  name?: string
-  company?: string
-  title?: string
-  phone?: string
-  email?: string
-  website?: string
-  address?: string
+export interface Booth {
+  rowNumber: number
+  timestamp: string
+  boothName?: string
+  scanCount: number
+  names: string[]
+  phones: string[]
+  emails: string[]
+  companies: string[]
+  rawOcr: ScanData[]
+  voiceTranscript: string | null
+  imageUrls: string[]
+}
+
+export interface CreateBoothInput {
+  boothName?: string
+  scans: ScanData[]
 }

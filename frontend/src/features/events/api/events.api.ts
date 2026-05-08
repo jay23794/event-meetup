@@ -8,6 +8,7 @@ type EventResponse = {
   name: string
   startDate?: string
   endDate?: string
+  eventLink?: string
   sheetId?: string
   sheetUrl?: string
   sheetCreated: boolean

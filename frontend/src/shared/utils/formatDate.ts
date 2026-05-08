@@ -1,5 +1,11 @@
-export function formatDate(date: string | Date): string {
+function isValidDate(d: Date): boolean {
+  return d instanceof Date && !isNaN(d.getTime())
+}
+
+export function formatDate(date: string | Date | undefined | null): string {
+  if (!date) return '—'
   const d = new Date(date)
+  if (!isValidDate(d)) return '—'
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -7,8 +13,10 @@ export function formatDate(date: string | Date): string {
   })
 }
 
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date: string | Date | undefined | null): string {
+  if (!date) return '—'
   const d = new Date(date)
+  if (!isValidDate(d)) return '—'
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -18,8 +26,10 @@ export function formatDateTime(date: string | Date): string {
   })
 }
 
-export function formatRelativeTime(date: string | Date): string {
+export function formatRelativeTime(date: string | Date | undefined | null): string {
+  if (!date) return '—'
   const d = new Date(date)
+  if (!isValidDate(d)) return '—'
   const now = new Date()
   const seconds = Math.floor((now.getTime() - d.getTime()) / 1000)
 

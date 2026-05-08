@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { boothsApi } from '../api/booths.api'
 
 export function useBooths(eventId: string, cursor?: string) {
-  const { data, isLoading, error, hasNextPage } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['booths', eventId, cursor],
     queryFn: () => boothsApi.listBooths(eventId, 50, cursor),
     enabled: !!eventId,

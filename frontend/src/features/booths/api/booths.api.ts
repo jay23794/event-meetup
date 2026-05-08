@@ -2,19 +2,9 @@ import axios from '../../../shared/api/axios'
 import { ApiResponse } from '../../../shared/types/api.types'
 import { Booth, CreateBoothInput } from '../types'
 
-type BoothResponse = {
-  _id: string
-  eventId: string
-  boothName?: string
-  scanCount: number
-  hasVoiceNote: boolean
-  sheetRowNumber: number
-  createdAt: string
-}
-
 interface BoothsResponse {
-  booths: BoothResponse[]
-  nextCursor?: string
+  booths: Booth[]
+  nextCursor?: number | string
   total: number
 }
 
@@ -22,24 +12,6 @@ interface CreateBoothResponse {
   boothId: string
   sheetRowNumber: number
 }
-
-export interface BoothDetail {
-  timestamp: string
-  boothName: string
-  scanCount: number
-  names: string
-  phones: string
-  emails: string
-  companies: string
-  rawOcr: string
-  voiceTranscript?: string
-  imageUrls: string
-}
-
-const mapBoothResponse = (booth: BoothResponse): Booth => ({
-  ...booth,
-  id: booth._id,
-})
 
 export const boothsApi = {
   listBooths: async (
@@ -55,17 +27,17 @@ export const boothsApi = {
       `/events/${eventId}/booths?${params}`
     )
     return {
-      booths: response.data.data.booths.map(mapBoothResponse),
-      nextCursor: response.data.data.nextCursor,
+      booths: response.data.data.booths,
+      nextCursor:
+        response.data.data.nextCursor !== undefined
+          ? String(response.data.data.nextCursor)
+          : undefined,
       total: response.data.data.total,
     }
   },
 
-  getBooth: async (
-    eventId: string,
-    rowNumber: number
-  ): Promise<BoothDetail> => {
-    const response = await axios.get<ApiResponse<{ booth: BoothDetail }>>(
+  getBooth: async (eventId: string, rowNumber: number): Promise<Booth> => {
+    const response = await axios.get<ApiResponse<{ booth: Booth }>>(
       `/events/${eventId}/booths/${rowNumber}`
     )
     return response.data.data.booth

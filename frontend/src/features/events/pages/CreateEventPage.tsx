@@ -21,7 +21,7 @@ export function CreateEventPage() {
         })
       })
       showSuccess('Event created successfully')
-      navigate(`/events/${event.id}`)
+      navigate(`/events/${event.id}/booths/new`)
     } catch (err) {
       showError('Failed to create event. Please try again.')
     }

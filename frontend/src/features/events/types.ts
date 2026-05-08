@@ -19,5 +19,6 @@ export interface EventDetail extends Event {
 
 export interface CreateEventInput {
   name: string
-  eventLink?: string
+  startDate?: string
+  endDate?: string
 }

@@ -11,7 +11,7 @@ const extractedFieldsSchema = z.object({
 });
 
 const scanSchema = z.object({
-  ocrText: z.string(),
+  rawText: z.string(),
   extractedFields: extractedFieldsSchema,
   imageUrl: z.string().url().optional(),
   driveFileId: z.string().optional(),

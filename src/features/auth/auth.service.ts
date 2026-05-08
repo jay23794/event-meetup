@@ -2,6 +2,8 @@ import { AuthRepository } from './auth.repository';
 import { ApiError } from '@/shared/utils/ApiError';
 import { generateToken } from '@/shared/utils/jwt';
 import { RegisterInput, LoginInput } from './auth.schema';
+import { createOAuthClient } from '@/shared/google/oauth.client';
+import { DriveService } from '@/features/drive/drive.service';
 
 export interface GoogleUserInfo {
   email: string;
@@ -73,6 +75,27 @@ export class AuthService {
     await this.repository.updateUser(user._id.toString(), {
       googleRefreshToken: refreshToken,
     });
+
+    try {
+      const oauthClient = createOAuthClient(refreshToken);
+      const driveService = new DriveService(oauthClient);
+      console.log('[Auth] Creating/ensuring MeetSync folder for user:', user.email);
+      const meetSyncFolderId = await driveService.ensureMeetSyncFolder(oauthClient, user.driveMeetSyncFolderId);
+      console.log('[Auth] MeetSync folder ID:', meetSyncFolderId);
+
+      if (meetSyncFolderId !== user.driveMeetSyncFolderId) {
+        console.log('[Auth] Updating user with new MeetSync folder ID');
+        await this.repository.updateUser(user._id.toString(), {
+          driveMeetSyncFolderId: meetSyncFolderId,
+        });
+      }
+    } catch (error) {
+      console.error('[Auth] Error creating MeetSync folder:', error);
+      if (error instanceof ApiError && error.statusCode === 502) {
+        throw error;
+      }
+      throw new ApiError(502, 'Failed to create MeetSync folder', { code: 'DRIVE_FOLDER_ERROR' });
+    }
 
     const token = generateToken({
       id: user._id.toString(),

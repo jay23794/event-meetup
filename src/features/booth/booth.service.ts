@@ -36,7 +36,9 @@ export class BoothService {
     }
 
     try {
+      console.log('[Booth] Ensuring sheet created...');
       const eventWithSheet = await this.eventService.ensureSheetCreated(eventId, userId);
+      console.log('[Booth] Sheet ensured');
       if (!eventWithSheet) {
         throw ApiError.internal('Failed to ensure sheet creation');
       }
@@ -71,8 +73,10 @@ export class BoothService {
         imageUrls.join('; '),
       ];
 
+      console.log('[Booth] Appending row to sheet...');
       const { updatedRange } = await sheetsClient.appendRow(eventWithSheet.sheetId, rowValues);
       const sheetRowNumber = this._extractRowNumber(updatedRange);
+      console.log('[Booth] Row appended successfully');
 
       const booth = await this.repository.createBooth({
         ownerUserId: userId,
@@ -95,6 +99,7 @@ export class BoothService {
         sheetRowNumber,
       };
     } catch (error) {
+      console.error('[Booth] Error in createBooth:', error instanceof Error ? error.message : error);
       if (error instanceof ApiError) {
         throw error;
       }

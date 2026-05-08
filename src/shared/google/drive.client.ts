@@ -63,6 +63,8 @@ export class DriveClient {
     const driveApi = google.drive({ version: 'v3', auth: oauth as any });
 
     const query = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false ${parentId ? `and '${parentId}' in parents` : ''}`;
+    console.log('[DriveClient] Searching for folder:', { name, parentId, query });
+
     const response = await driveApi.files.list({
       q: query,
       fields: 'files(id)',
@@ -71,9 +73,11 @@ export class DriveClient {
 
     const existingFolder = response.data.files?.[0]?.id;
     if (existingFolder) {
+      console.log('[DriveClient] Folder already exists:', { name, id: existingFolder });
       return existingFolder;
     }
 
+    console.log('[DriveClient] Creating new folder:', name);
     const createResponse = await driveApi.files.create({
       requestBody: {
         name,
@@ -87,6 +91,7 @@ export class DriveClient {
       throw new Error(`Failed to create folder: ${name}`);
     }
 
+    console.log('[DriveClient] Folder created:', { name, id: createResponse.data.id });
     return createResponse.data.id;
   }
 

@@ -6,6 +6,7 @@ import { createOAuthClient } from '@/shared/google/oauth.client';
 import { SheetsClient } from '@/shared/google/sheets.client';
 import { CacheService } from '@/shared/cache/cache.service';
 import { CreateEventInput, UpdateEventInput } from './event.schema';
+import { DriveService } from '@/features/drive/drive.service';
 
 const BOOTH_SHEET_HEADERS = [
   'Timestamp',
@@ -55,13 +56,88 @@ export class EventService {
       sheetCreated: false,
     });
 
+    try {
+      console.log('[EventService] Creating folders for new event:', event._id);
+      const user = await User.findById(userId).select('+googleRefreshToken driveMeetSyncFolderId');
+      if (user?.googleRefreshToken && user.driveMeetSyncFolderId) {
+        const oauthClient = createOAuthClient(user.googleRefreshToken);
+        const driveService = new DriveService(oauthClient);
+
+        const eventFolderId = await driveService.ensureEventFolder(
+          oauthClient,
+          event.name,
+          event._id.toString(),
+          user.driveMeetSyncFolderId
+        );
+
+        const boothFolderId = await driveService.ensureBoothFolder(oauthClient, eventFolderId);
+
+        await this.repository.updateEvent(event._id.toString(), {
+          driveEventFolderId: eventFolderId,
+          driveImagesFolderId: boothFolderId,
+        });
+
+        console.log('[EventService] Event folders created successfully');
+      }
+    } catch (error) {
+      console.warn('[EventService] Could not create folders for event (may not have Drive permission):', error instanceof Error ? error.message : error);
+    }
+
     return event;
+  }
+
+  async ensureEventFolders(eventId: string, userId: string) {
+    const event = await this.getEvent(eventId, userId);
+
+    if (event.driveEventFolderId && event.driveImagesFolderId) {
+      console.log('[EventService] Event folders already exist');
+      return event;
+    }
+
+    const user = await User.findById(userId).select('+googleRefreshToken driveMeetSyncFolderId');
+    if (!user?.googleRefreshToken) {
+      throw new ApiError(412, 'Reconnect Google account with Drive permission');
+    }
+    if (!user.driveMeetSyncFolderId) {
+      throw new ApiError(412, 'MeetSync folder not initialized');
+    }
+
+    try {
+      console.log('[EventService] Creating event folders...');
+      const oauthClient = createOAuthClient(user.googleRefreshToken);
+      const driveService = new DriveService(oauthClient);
+
+      const eventFolderId = await driveService.ensureEventFolder(
+        oauthClient,
+        event.name,
+        eventId,
+        user.driveMeetSyncFolderId
+      );
+      console.log('[EventService] Event folder created:', eventFolderId);
+
+      const boothFolderId = await driveService.ensureBoothFolder(oauthClient, eventFolderId);
+      console.log('[EventService] Booth folder created:', boothFolderId);
+
+      const updatedEvent = await this.repository.updateEvent(eventId, {
+        driveEventFolderId: eventFolderId,
+        driveImagesFolderId: boothFolderId,
+      });
+
+      return updatedEvent;
+    } catch (error) {
+      console.error('[EventService] Error in ensureEventFolders:', error instanceof Error ? error.message : error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(502, 'Failed to create event folders', { code: 'DRIVE_FOLDER_ERROR' });
+    }
   }
 
   async ensureSheetCreated(eventId: string, userId: string) {
     const event = await this.getEvent(eventId, userId);
 
     if (event.sheetCreated) {
+      console.log('[EventService] Sheet already created');
       return event;
     }
 
@@ -71,11 +147,16 @@ export class EventService {
     }
 
     try {
+      console.log('[EventService] Creating sheet:', `${event.name} - Booth Log`, 'in folder:', event.driveEventFolderId);
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
-      const { sheetId, sheetUrl } = await sheetsClient.createSheet(`${event.name} - Booth Log`);
+      const { sheetId, sheetUrl } = await sheetsClient.createSheet(`${event.name} - Booth Log`, event.driveEventFolderId);
+      console.log('[EventService] Sheet created:', sheetId);
+
+      console.log('[EventService] Adding header row...');
       await sheetsClient.addHeaderRow(sheetId, BOOTH_SHEET_HEADERS);
+      console.log('[EventService] Header row added');
 
       const updatedEvent = await this.repository.updateEvent(eventId, {
         sheetId,
@@ -83,8 +164,10 @@ export class EventService {
         sheetCreated: true,
       });
 
+      console.log('[EventService] Sheet metadata updated in database');
       return updatedEvent;
     } catch (error) {
+      console.error('[EventService] Error in ensureSheetCreated:', error instanceof Error ? error.message : error, error instanceof Error ? error.stack : '');
       if (error instanceof ApiError) {
         throw error;
       }

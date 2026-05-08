@@ -128,42 +128,28 @@ export class ScanService {
   private async uploadToDrive(
     user: any,
     eventId: string,
-    eventName: string,
+    _eventName: string,
     imageBuffer: Buffer
   ): Promise<{ imageUrl: string; fileId: string }> {
     try {
       const event = await this.eventRepository.findEventById(eventId);
       if (!event) throw ApiError.notFound('Event not found');
 
+      if (!event.driveImagesFolderId) {
+        throw new ApiError(412, 'Event folders not initialized. Please recreate the event.');
+      }
+
       const oauthClient = createOAuthClient(user.googleRefreshToken!);
       const driveClient = new DriveClient(oauthClient);
-
-      let rootFolderId = event.driveRootFolderId;
-      if (!rootFolderId) {
-        rootFolderId = await driveClient.ensureFolder(oauthClient, 'Meet Sync', null);
-        await this.eventRepository.updateEvent(eventId, { driveRootFolderId: rootFolderId });
-      }
-
-      let eventFolderId = event.driveEventFolderId;
-      if (!eventFolderId) {
-        eventFolderId = await driveClient.ensureFolder(oauthClient, eventName, rootFolderId);
-        await this.eventRepository.updateEvent(eventId, { driveEventFolderId: eventFolderId });
-      }
-
-      let imagesFolderId = event.driveImagesFolderId;
-      if (!imagesFolderId) {
-        imagesFolderId = await driveClient.ensureFolder(oauthClient, 'images', eventFolderId);
-        await this.eventRepository.updateEvent(eventId, { driveImagesFolderId: imagesFolderId });
-      }
 
       const timestamp = Date.now();
       const { nanoid } = await import('nanoid');
       const randomSuffix = nanoid(4);
       const filename = `${timestamp}_${randomSuffix}.jpg`;
 
-      const { fileId, webContentLink } = await driveClient.uploadImage(
+      const { fileId } = await driveClient.uploadImage(
         oauthClient,
-        imagesFolderId,
+        event.driveImagesFolderId,
         imageBuffer,
         filename
       );

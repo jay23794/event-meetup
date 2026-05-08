@@ -5,6 +5,7 @@ import { EventsListPage } from '../features/events/pages/EventsListPage'
 import { CreateEventPage } from '../features/events/pages/CreateEventPage'
 import { EventDetailPage } from '../features/events/pages/EventDetailPage'
 import { BoothFormPage } from '../features/booths/components/BoothFormPage'
+import { CreateBoothPage } from '../features/exhibitorBooths/pages/CreateBoothPage'
 
 export const routes: RouteObject[] = [
   {
@@ -40,7 +41,15 @@ export const routes: RouteObject[] = [
     ),
   },
   {
-    path: '/events/:id/booths/new',
+    path: '/events/:eventId/booths/new',
+    element: (
+      <ProtectedRoute>
+        <CreateBoothPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/events/:id/booths/scan',
     element: (
       <ProtectedRoute>
         <BoothFormPage />

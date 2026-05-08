@@ -50,4 +50,12 @@ export class ExhibitorBoothRepository {
       createdAt: -1,
     });
   }
+
+  async incrementDocumentCount(boothId: string): Promise<void> {
+    await ExhibitorBooth.findByIdAndUpdate(boothId, { $inc: { documentCount: 1 } });
+  }
+
+  async decrementDocumentCount(boothId: string): Promise<void> {
+    await ExhibitorBooth.findByIdAndUpdate(boothId, { $inc: { documentCount: -1 } });
+  }
 }

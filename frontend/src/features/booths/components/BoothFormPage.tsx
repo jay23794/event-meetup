@@ -70,7 +70,7 @@ export function BoothFormPage() {
       })
 
       showSuccess('Booth created successfully')
-      navigate(`/events/${eventId}`)
+      navigate('/visitor')
     } catch (err) {
       showError('Failed to create booth. Please try again.')
     }
@@ -104,7 +104,7 @@ export function BoothFormPage() {
               <HStack spacing={4} w="full" justify="flex-end">
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/events/${eventId}`)}
+                  onClick={() => navigate('/visitor')}
                 >
                   Cancel
                 </Button>

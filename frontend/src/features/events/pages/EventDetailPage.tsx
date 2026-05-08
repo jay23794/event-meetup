@@ -101,7 +101,7 @@ export function EventDetailPage() {
             w={{ base: 'full', md: 'auto' }}
             onClick={() => navigate(`/events/${id}/booths/new`)}
           >
-            New Booth
+            Add Booth
           </Button>
 
           <Divider />

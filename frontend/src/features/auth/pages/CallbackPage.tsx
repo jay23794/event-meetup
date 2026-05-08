@@ -25,7 +25,7 @@ export function CallbackPage() {
       const { jwt, user } = await authApi.exchangeCode(code)
       setToken(jwt)
       setUser(user)
-      navigate('/events')
+      navigate('/')
     } catch (err) {
       showError('Failed to complete sign in. Please try again.')
     }

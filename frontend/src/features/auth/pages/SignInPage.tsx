@@ -10,7 +10,7 @@ export function SignInPage() {
   useEffect(() => {
     // If already logged in, redirect to events
     if (token) {
-      navigate('/events', { replace: true })
+      navigate('/', { replace: true })
       return
     }
 
@@ -34,7 +34,7 @@ export function SignInPage() {
 
       // Clean up URL and redirect
       window.history.replaceState({}, document.title, '/signin')
-      navigate('/events', { replace: true })
+      navigate('/', { replace: true })
     }
   }, [token, navigate])
 

@@ -39,7 +39,7 @@ export function EventsListPage() {
       <PageContainer>
         <HStack justify="space-between" mb={8} wrap="wrap">
           <Heading size="lg" color="brand.900">
-            My Events
+            My Booths
           </Heading>
           <Button
             leftIcon={<FiPlus />}
@@ -48,7 +48,7 @@ export function EventsListPage() {
             _hover={{ bg: 'brand.700' }}
             onClick={() => navigate('/events/new')}
           >
-            New Event
+            Create Event
           </Button>
         </HStack>
 

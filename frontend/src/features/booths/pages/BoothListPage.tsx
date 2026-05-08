@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { VStack, Button, SimpleGrid } from '@chakra-ui/react'
+import { VStack, Button, SimpleGrid, useDisclosure } from '@chakra-ui/react'
 import { useBooths } from '../hooks/useBooths'
 import { BoothCard } from '../components/BoothCard'
+import { BoothDetailModal } from '../components/BoothDetailModal'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { ErrorMessage } from '../../../shared/components/ErrorMessage'
 import { EmptyState } from '../../../shared/components/EmptyState'
@@ -12,10 +13,22 @@ interface BoothListPageProps {
 
 export function BoothListPage({ eventId }: BoothListPageProps) {
   const [cursor, setCursor] = useState<string | undefined>()
+  const [selectedRowNumber, setSelectedRowNumber] = useState<number | null>(null)
+  const { isOpen, onOpen, onClose } = useDisclosure()
   const { booths, nextCursor, total, isLoading, error, hasNextPage } = useBooths(
     eventId,
     cursor
   )
+
+  const handleBoothClick = (rowNumber: number) => {
+    setSelectedRowNumber(rowNumber)
+    onOpen()
+  }
+
+  const handleModalClose = () => {
+    onClose()
+    setSelectedRowNumber(null)
+  }
 
   if (isLoading && !booths.length) {
     return <LoadingSpinner />
@@ -40,23 +53,36 @@ export function BoothListPage({ eventId }: BoothListPageProps) {
   }
 
   return (
-    <VStack spacing={6} w="full">
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
-        {booths.map((booth) => (
-          <BoothCard key={booth.id} booth={booth} />
-        ))}
-      </SimpleGrid>
+    <>
+      <VStack spacing={6} w="full">
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+          {booths.map((booth) => (
+            <BoothCard
+              key={booth.id}
+              booth={booth}
+              onClick={() => handleBoothClick(booth.sheetRowNumber)}
+            />
+          ))}
+        </SimpleGrid>
 
-      {hasNextPage && (
-        <Button
-          w="full"
-          variant="outline"
-          onClick={() => setCursor(nextCursor)}
-          isLoading={isLoading}
-        >
-          Load more ({total - booths.length} remaining)
-        </Button>
-      )}
-    </VStack>
+        {hasNextPage && (
+          <Button
+            w="full"
+            variant="outline"
+            onClick={() => setCursor(nextCursor)}
+            isLoading={isLoading}
+          >
+            Load more ({total - booths.length} remaining)
+          </Button>
+        )}
+      </VStack>
+
+      <BoothDetailModal
+        isOpen={isOpen}
+        onClose={handleModalClose}
+        eventId={eventId}
+        rowNumber={selectedRowNumber}
+      />
+    </>
   )
 }

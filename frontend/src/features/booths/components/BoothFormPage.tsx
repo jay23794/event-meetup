@@ -29,6 +29,7 @@ export function BoothFormPage() {
   const { success: showSuccess, error: showError } = useToast()
 
   const completedScans = scans.filter((s) => s.status === 'completed')
+  const maxScans = 2
 
   const handleScansReady = (readyScans: ProcessingScan[]) => {
     setScans(readyScans)
@@ -40,8 +41,13 @@ export function BoothFormPage() {
       return
     }
 
-    if (completedScans.length === 0) {
-      showError('Please complete at least one scan')
+    if (completedScans.length < 1) {
+      showError('Please upload at least 1 business card')
+      return
+    }
+
+    if (completedScans.length > maxScans) {
+      showError(`Maximum ${maxScans} business cards allowed`)
       return
     }
 
@@ -108,9 +114,10 @@ export function BoothFormPage() {
                   _hover={{ bg: 'brand.700' }}
                   onClick={handleSubmit}
                   isLoading={isPending}
-                  isDisabled={completedScans.length === 0}
+                  isDisabled={completedScans.length < 1}
+                  title={completedScans.length < 1 ? 'Upload at least 1 card' : 'Submit booth'}
                 >
-                  Submit Booth
+                  Submit Booth ({completedScans.length}/{maxScans})
                 </Button>
               </HStack>
             </VStack>

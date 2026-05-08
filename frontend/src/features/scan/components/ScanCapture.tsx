@@ -1,13 +1,15 @@
 import { useRef } from 'react'
 import {
   Button,
-  Box,
   Input,
   VStack,
+  HStack,
   Center,
   Text,
+  SimpleGrid,
+  Box,
 } from '@chakra-ui/react'
-import { FiCamera, FiUpload } from 'react-icons/fi'
+import { FiCamera, FiUpload, FiImage } from 'react-icons/fi'
 
 interface ScanCaptureProps {
   onCapture: (file: File) => void
@@ -15,6 +17,7 @@ interface ScanCaptureProps {
 }
 
 export function ScanCapture({ onCapture, isLoading }: ScanCaptureProps) {
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,9 +25,14 @@ export function ScanCapture({ onCapture, isLoading }: ScanCaptureProps) {
     if (file && file.type.startsWith('image/')) {
       onCapture(file)
     }
+    event.target.value = ''
   }
 
   const handleCameraClick = () => {
+    cameraInputRef.current?.click()
+  }
+
+  const handleUploadClick = () => {
     fileInputRef.current?.click()
   }
 
@@ -32,29 +40,26 @@ export function ScanCapture({ onCapture, isLoading }: ScanCaptureProps) {
     <VStack spacing={4} w="full">
       <Center
         w="full"
-        h="200px"
+        h="180px"
         border="2px dashed"
         borderColor="brand.400"
-        borderRadius="md"
-        bg="brand.300"
-        cursor="pointer"
-        _hover={{ bg: 'brand.400' }}
-        onClick={handleCameraClick}
+        borderRadius="lg"
+        bg="brand.200"
         transition="all 0.2s"
       >
         <VStack spacing={2}>
-          <FiCamera size={32} color="brand.800" />
-          <Text color="brand.800" fontWeight="bold">
-            Tap to capture or upload
+          <FiImage size={36} color="#0077b6" />
+          <Text color="brand.800" fontWeight="600">
+            Add Business Card Image
           </Text>
           <Text color="brand.600" fontSize="sm">
-            Image of business card
+            Capture with camera or upload from device
           </Text>
         </VStack>
       </Center>
 
       <Input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -63,15 +68,42 @@ export function ScanCapture({ onCapture, isLoading }: ScanCaptureProps) {
         disabled={isLoading}
       />
 
-      <Button
-        w="full"
-        leftIcon={<FiUpload />}
-        variant="outline"
-        onClick={handleCameraClick}
-        isDisabled={isLoading}
-      >
-        {isLoading ? 'Processing...' : 'Choose Image'}
-      </Button>
+      <Input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        display="none"
+        disabled={isLoading}
+      />
+
+      <SimpleGrid columns={2} spacing={3} w="full">
+        <Button
+          leftIcon={<FiCamera />}
+          bg="brand.700"
+          color="white"
+          _hover={{ bg: 'brand.800' }}
+          onClick={handleCameraClick}
+          isDisabled={isLoading}
+          isLoading={isLoading}
+          loadingText="Processing"
+          size="lg"
+        >
+          Capture
+        </Button>
+        <Button
+          leftIcon={<FiUpload />}
+          variant="outline"
+          borderColor="brand.700"
+          color="brand.700"
+          _hover={{ bg: 'brand.200' }}
+          onClick={handleUploadClick}
+          isDisabled={isLoading}
+          size="lg"
+        >
+          Upload
+        </Button>
+      </SimpleGrid>
     </VStack>
   )
 }

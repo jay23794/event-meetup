@@ -4,11 +4,16 @@ import { Booth } from '../types'
 
 interface BoothCardProps {
   booth: Booth
+  onClick?: () => void
 }
 
-export function BoothCard({ booth }: BoothCardProps) {
+export function BoothCard({ booth, onClick }: BoothCardProps) {
   return (
-    <Card>
+    <Card
+      cursor={onClick ? 'pointer' : 'default'}
+      onClick={onClick}
+      _hover={onClick ? { boxShadow: 'md', transform: 'translateY(-2px)', transition: 'all 0.2s' } : {}}
+    >
       <CardBody>
         <VStack align="start" spacing={3}>
           <Heading size="sm" color="brand.900">

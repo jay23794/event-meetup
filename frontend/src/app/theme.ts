@@ -14,8 +14,8 @@ export const theme = extendTheme({
     },
   },
   fonts: {
-    heading: 'system-ui, sans-serif',
-    body: 'system-ui, sans-serif',
+    heading: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    body: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   styles: {
     global: {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   VStack,
   Button,
@@ -25,18 +25,27 @@ export function ScanCarousel({ eventId, onScansReady }: ScanCarouselProps) {
   const { processScan, isPending } = useScan(eventId)
   const { error: showError, success: showSuccess } = useToast()
 
-  const maxScans = 3
+  const maxScans = 2
+
+  // Update parent whenever scans change
+  useEffect(() => {
+    onScansReady(scans)
+  }, [scans, onScansReady])
 
   const handleCapture = async (file: File) => {
+    if (scans.length >= maxScans) {
+      showError(`Maximum ${maxScans} uploads allowed`)
+      return
+    }
+
     const scanId = Date.now().toString()
-    setScans((prev) => [
-      ...prev,
-      {
-        id: scanId,
-        status: 'processing',
-        imageFile: file,
-      },
-    ])
+    const newScan: ProcessingScan = {
+      id: scanId,
+      status: 'processing',
+      imageFile: file,
+    }
+
+    setScans((prev) => [...prev, newScan])
 
     try {
       const result = await processScan(file)
@@ -54,7 +63,12 @@ export function ScanCarousel({ eventId, onScansReady }: ScanCarouselProps) {
             : scan
         )
       )
-      setCurrentIndex(scans.length)
+      // Set currentIndex to show the review screen
+      setScans((prev) => {
+        const idx = prev.findIndex((s) => s.id === scanId)
+        setCurrentIndex(idx)
+        return prev
+      })
       showSuccess('Image processed successfully')
     } catch (err) {
       setScans((prev) =>
@@ -83,7 +97,6 @@ export function ScanCarousel({ eventId, onScansReady }: ScanCarouselProps) {
       )
     )
     setCurrentIndex(null)
-    onScansReady(scans)
   }
 
   const handleDelete = () => {
@@ -104,7 +117,16 @@ export function ScanCarousel({ eventId, onScansReady }: ScanCarouselProps) {
   }
 
   const handleAddMore = () => {
-    setCurrentIndex(null)
+    // Create a new capturing scan
+    const scanId = Date.now().toString()
+    setScans((prev) => [
+      ...prev,
+      {
+        id: scanId,
+        status: 'capturing',
+      },
+    ])
+    setCurrentIndex((prev) => (prev === null ? scans.length : prev))
   }
 
   const completedCount = scans.filter((s) => s.status === 'completed').length
@@ -143,9 +165,14 @@ export function ScanCarousel({ eventId, onScansReady }: ScanCarouselProps) {
     <VStack spacing={4} w="full">
       <VStack spacing={2} w="full">
         <HStack w="full" justify="space-between">
-          <Text fontWeight="bold" color="brand.900">
-            Scan business cards (up to {maxScans})
-          </Text>
+          <VStack align="start" spacing={0}>
+            <Text fontWeight="bold" color="brand.900">
+              Scan business cards
+            </Text>
+            <Text fontSize="xs" color="brand.600">
+              {scans.length}/{maxScans} uploaded
+            </Text>
+          </VStack>
           <Badge colorScheme="brand">{completedCount} completed</Badge>
         </HStack>
 

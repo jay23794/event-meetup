@@ -64,6 +64,13 @@ export const exhibitorBoothsApi = {
     return mapBooth(response.data.data.booth)
   },
 
+  listByEvent: async (eventId: string): Promise<ExhibitorBooth[]> => {
+    const response = await axios.get<ApiResponse<{ booths: ExhibitorBoothResponse[] }>>(
+      `/exhibitor/events/${eventId}/booths`
+    )
+    return response.data.data.booths.map(mapBooth)
+  },
+
   getBooth: async (boothId: string): Promise<ExhibitorBooth> => {
     const response = await axios.get<ApiResponse<{ booth: ExhibitorBoothResponse }>>(
       `/exhibitor/booths/${boothId}`

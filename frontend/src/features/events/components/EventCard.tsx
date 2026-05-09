@@ -6,13 +6,14 @@ import { Event } from '../types'
 
 interface EventCardProps {
   event: Event
+  basePath?: string
 }
 
-export function EventCard({ event }: EventCardProps) {
+export function EventCard({ event, basePath = '/exhibitor' }: EventCardProps) {
   const navigate = useNavigate()
 
   const handleClick = () => {
-    navigate(`/events/${event.id}`)
+    navigate(`${basePath}/events/${event.id}`)
   }
 
   return (

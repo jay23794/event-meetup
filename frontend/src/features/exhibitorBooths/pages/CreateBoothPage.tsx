@@ -32,13 +32,15 @@ import { PageContainer } from '../../../shared/components/PageContainer'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { useToast } from '../../../shared/hooks/useToast'
 import { authStore } from '../../auth/store/authStore'
-import { useEvent } from '../../events/hooks/useEvent'
+import { authApi } from '../../auth/api/auth.api'
+import { useExhibitorEvent } from '../hooks/useExhibitorEvents'
 import {
   GoogleDriveClient,
   GoogleDriveError,
 } from '../../../shared/google/drive.client'
 import { exhibitorBoothsApi } from '../api/exhibitorBooths.api'
 import { ExhibitorDocumentFileType } from '../types'
+import axios from 'axios'
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 const UPLOAD_CONCURRENCY = 3
@@ -98,7 +100,7 @@ export function CreateBoothPage() {
   const navigate = useNavigate()
   const { success: showSuccess, error: showError, info: showInfo } = useToast()
 
-  const { event, isLoading: eventLoading } = useEvent(eventId || '')
+  const { event, isLoading: eventLoading } = useExhibitorEvent(eventId || '')
 
   const [documents, setDocuments] = useState<DocumentEntry[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -181,10 +183,27 @@ export function CreateBoothPage() {
     )
   }
 
-  const handleAuthExpired = () => {
-    showError('Session expired, please sign in again')
+  const handleReconnectGoogle = (message: string) => {
+    showError(message)
     authStore.getState().logout()
     navigate('/signin')
+  }
+
+  const fetchFreshDriveToken = async (): Promise<string | null> => {
+    try {
+      const { accessToken } = await authApi.getGoogleAccessToken()
+      authStore.getState().setGoogleAccessToken(accessToken)
+      return accessToken
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 412) {
+        handleReconnectGoogle(
+          'Google connection expired — please sign in again to reconnect',
+        )
+        return null
+      }
+      showError('Could not refresh Google access — please try again')
+      return null
+    }
   }
 
   const buildEventFolder = async (
@@ -197,10 +216,11 @@ export function CreateBoothPage() {
   }
 
   const uploadOneDocument = async (
-    drive: GoogleDriveClient,
+    driveRef: { current: GoogleDriveClient },
     eventFolderId: string,
     targetBoothId: string,
     doc: DocumentEntry,
+    refreshDrive: () => Promise<GoogleDriveClient | null>,
   ): Promise<boolean> => {
     updateDocument(doc.id, {
       status: 'uploading',
@@ -208,16 +228,37 @@ export function CreateBoothPage() {
       error: undefined,
     })
 
-    try {
+    const doUpload = async (drive: GoogleDriveClient) => {
       const { fileId, webViewLink } = await drive.uploadFile(
         doc.file,
         eventFolderId,
         (pct) => updateDocument(doc.id, { progress: Math.round(pct) }),
       )
       await drive.setPublicPermission(fileId)
+      return { fileId, webViewLink }
+    }
+
+    try {
+      let result
+      try {
+        result = await doUpload(driveRef.current)
+      } catch (err) {
+        if (err instanceof GoogleDriveError && err.status === 401) {
+          const fresh = await refreshDrive()
+          if (!fresh) {
+            updateDocument(doc.id, { status: 'error', error: 'Session expired' })
+            return false
+          }
+          driveRef.current = fresh
+          result = await doUpload(fresh)
+        } else {
+          throw err
+        }
+      }
+
       await exhibitorBoothsApi.createDocument(targetBoothId, {
-        driveFileId: fileId,
-        driveFileUrl: webViewLink,
+        driveFileId: result.fileId,
+        driveFileUrl: result.webViewLink,
         fileName: doc.file.name,
         fileType: doc.type,
         mimeType: doc.file.type || undefined,
@@ -227,15 +268,11 @@ export function CreateBoothPage() {
       updateDocument(doc.id, {
         status: 'done',
         progress: 100,
-        driveFileId: fileId,
-        driveFileUrl: webViewLink,
+        driveFileId: result.fileId,
+        driveFileUrl: result.webViewLink,
       })
       return true
     } catch (err) {
-      if (err instanceof GoogleDriveError && err.status === 401) {
-        updateDocument(doc.id, { status: 'error', error: 'Session expired' })
-        throw err
-      }
       const message = err instanceof Error ? err.message : 'Upload failed'
       updateDocument(doc.id, { status: 'error', error: message })
       return false
@@ -247,52 +284,52 @@ export function CreateBoothPage() {
     eventName: string,
     docs: DocumentEntry[],
   ): Promise<{ ok: boolean; allSucceeded: boolean }> => {
-    const accessToken = authStore.getState().googleAccessToken
-    if (!accessToken) {
-      handleAuthExpired()
-      return { ok: false, allSucceeded: false }
+    const accessToken = await fetchFreshDriveToken()
+    if (!accessToken) return { ok: false, allSucceeded: false }
+
+    const driveRef = { current: new GoogleDriveClient(accessToken) }
+
+    const refreshDrive = async (): Promise<GoogleDriveClient | null> => {
+      const fresh = await fetchFreshDriveToken()
+      if (!fresh) return null
+      const next = new GoogleDriveClient(fresh)
+      driveRef.current = next
+      return next
     }
-    const drive = new GoogleDriveClient(accessToken)
 
     let eventFolderId: string
     try {
-      eventFolderId = await buildEventFolder(drive, eventName)
+      eventFolderId = await buildEventFolder(driveRef.current, eventName)
     } catch (err) {
       if (err instanceof GoogleDriveError && err.status === 401) {
-        handleAuthExpired()
+        const fresh = await refreshDrive()
+        if (!fresh) return { ok: false, allSucceeded: false }
+        try {
+          eventFolderId = await buildEventFolder(fresh, eventName)
+        } catch (retryErr) {
+          const message =
+            retryErr instanceof Error ? retryErr.message : 'Drive setup failed'
+          showError(`Could not prepare Drive folder — ${message}`)
+          return { ok: false, allSucceeded: false }
+        }
+      } else {
+        const message = err instanceof Error ? err.message : 'Drive setup failed'
+        showError(`Could not prepare Drive folder — ${message}`)
         return { ok: false, allSucceeded: false }
       }
-      const message = err instanceof Error ? err.message : 'Drive setup failed'
-      showError(`Could not prepare Drive folder — ${message}`)
-      return { ok: false, allSucceeded: false }
     }
 
-    let authExpired = false
     let allSucceeded = true
     await runWithLimit(docs, UPLOAD_CONCURRENCY, async (doc) => {
-      if (authExpired) return
-      try {
-        const success = await uploadOneDocument(
-          drive,
-          eventFolderId,
-          targetBoothId,
-          doc,
-        )
-        if (!success) allSucceeded = false
-      } catch (err) {
-        if (err instanceof GoogleDriveError && err.status === 401) {
-          authExpired = true
-          allSucceeded = false
-        } else {
-          allSucceeded = false
-        }
-      }
+      const success = await uploadOneDocument(
+        driveRef,
+        eventFolderId,
+        targetBoothId,
+        doc,
+        refreshDrive,
+      )
+      if (!success) allSucceeded = false
     })
-
-    if (authExpired) {
-      handleAuthExpired()
-      return { ok: false, allSucceeded: false }
-    }
 
     return { ok: true, allSucceeded }
   }
@@ -308,10 +345,6 @@ export function CreateBoothPage() {
     }
     if (!event?.name) {
       showError('Event details not loaded yet — please wait')
-      return
-    }
-    if (!authStore.getState().googleAccessToken) {
-      handleAuthExpired()
       return
     }
 
@@ -354,47 +387,14 @@ export function CreateBoothPage() {
 
   const retryDocument = async (docId: string) => {
     if (!eventId || !boothId || !event?.name) return
-    const accessToken = authStore.getState().googleAccessToken
-    if (!accessToken) {
-      handleAuthExpired()
-      return
-    }
 
     const target = documents.find((d) => d.id === docId)
     if (!target) return
 
     setIsSubmitting(true)
-    const drive = new GoogleDriveClient(accessToken)
-
-    let eventFolderId: string
-    try {
-      eventFolderId = await buildEventFolder(drive, event.name)
-    } catch (err) {
-      setIsSubmitting(false)
-      if (err instanceof GoogleDriveError && err.status === 401) {
-        handleAuthExpired()
-        return
-      }
-      const message = err instanceof Error ? err.message : 'Drive setup failed'
-      showError(message)
-      return
-    }
-
-    let succeeded = false
-    try {
-      succeeded = await uploadOneDocument(drive, eventFolderId, boothId, target)
-    } catch (err) {
-      setIsSubmitting(false)
-      if (err instanceof GoogleDriveError && err.status === 401) {
-        handleAuthExpired()
-        return
-      }
-      return
-    }
-
+    const { ok, allSucceeded } = await runUploads(boothId, event.name, [target])
     setIsSubmitting(false)
-
-    if (!succeeded) return
+    if (!ok || !allSucceeded) return
 
     const remainingFailures = documents.some(
       (d) => d.id !== docId && d.status !== 'done',

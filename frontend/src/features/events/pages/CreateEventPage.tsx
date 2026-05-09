@@ -3,14 +3,23 @@ import { Card, CardBody, CardHeader, Heading, VStack } from '@chakra-ui/react'
 import { Layout } from '../../../shared/components/Layout'
 import { PageContainer } from '../../../shared/components/PageContainer'
 import { CreateEventForm } from '../components/CreateEventForm'
+import { useCreateExhibitorEvent } from '../../exhibitorBooths/hooks/useExhibitorEvents'
 import { useCreateEvent } from '../hooks/useCreateEvent'
 import { CreateEventInput } from '../types'
 import { useToast } from '../../../shared/hooks/useToast'
 
-export function CreateEventPage() {
+interface CreateEventPageProps {
+  isExhibitor?: boolean
+}
+
+export function CreateEventPage({ isExhibitor = true }: CreateEventPageProps) {
   const navigate = useNavigate()
-  const { createEvent, isPending, error } = useCreateEvent()
+  const exhibitorMutation = useCreateExhibitorEvent()
+  const visitorMutation = useCreateEvent()
   const { success: showSuccess, error: showError } = useToast()
+
+  const { createEvent, isPending } = isExhibitor ? exhibitorMutation : visitorMutation
+  const basePath = isExhibitor ? '/exhibitor' : '/visitor'
 
   const handleSubmit = async (data: CreateEventInput) => {
     try {
@@ -21,7 +30,11 @@ export function CreateEventPage() {
         })
       })
       showSuccess('Event created successfully')
-      navigate(`/events/${event.id}/booths/new`)
+      if (isExhibitor) {
+        navigate(`${basePath}/events/${event.id}/booths/new`)
+      } else {
+        navigate(`${basePath}/events/${event.id}/scan`)
+      }
     } catch (err) {
       showError('Failed to create event. Please try again.')
     }
@@ -41,7 +54,7 @@ export function CreateEventPage() {
               <CreateEventForm
                 onSubmit={handleSubmit}
                 isPending={isPending}
-                onCancel={() => navigate('/events')}
+                onCancel={() => navigate(basePath)}
               />
             </CardBody>
           </Card>

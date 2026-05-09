@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -24,9 +25,19 @@ export function VisitorHomePage() {
   const navigate = useNavigate()
   const { events, isLoading, error } = useEvents()
   const { info } = useToast()
+  const eventsRef = useRef<HTMLDivElement>(null)
 
   const handleScanQr = () => {
     info('Camera QR scanner coming soon — for now, scan with your phone camera and follow the link.')
+  }
+
+  const handleCaptureCard = () => {
+    if (events.length === 0) {
+      info('Create an event first to capture business cards')
+      navigate('/visitor/events/new')
+      return
+    }
+    eventsRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -69,7 +80,15 @@ export function VisitorHomePage() {
               </CardBody>
             </Card>
 
-            <Card textAlign="left">
+            <Card
+              as="button"
+              type="button"
+              onClick={handleCaptureCard}
+              cursor="pointer"
+              textAlign="left"
+              transition="transform 0.15s, box-shadow 0.15s"
+              _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
+            >
               <CardBody>
                 <VStack align="start" spacing={3}>
                   <HStack spacing={3}>
@@ -91,7 +110,7 @@ export function VisitorHomePage() {
 
           <Divider />
 
-          <VStack align="stretch" spacing={4}>
+          <VStack align="stretch" spacing={4} ref={eventsRef}>
             <HStack justify="space-between" wrap="wrap">
               <Heading size="md" color="brand.900">
                 Pick an event
@@ -100,7 +119,7 @@ export function VisitorHomePage() {
                 size="sm"
                 variant="outline"
                 leftIcon={<FiPlus />}
-                onClick={() => navigate('/events/new')}
+                onClick={() => navigate('/visitor/events/new')}
               >
                 New event
               </Button>

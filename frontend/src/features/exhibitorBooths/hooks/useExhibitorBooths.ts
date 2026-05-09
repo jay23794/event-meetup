@@ -45,6 +45,21 @@ export function useBooth(boothId: string) {
   }
 }
 
+export function useExhibitorBooths(eventId: string) {
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ['exhibitor-booths', eventId],
+    queryFn: () => exhibitorBoothsApi.listByEvent(eventId),
+    enabled: !!eventId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return {
+    booths: data,
+    isLoading,
+    error,
+  }
+}
+
 export function useCreateDocument() {
   const queryClient = useQueryClient()
 

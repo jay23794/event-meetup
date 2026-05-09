@@ -26,4 +26,11 @@ export const authApi = {
     )
     return response.data.data
   },
+
+  getGoogleAccessToken: async (): Promise<{ accessToken: string; expiresAt: number | null }> => {
+    const response = await axios.get<
+      ApiResponse<{ accessToken: string; expiresAt: number | null }>
+    >('/auth/google/access-token')
+    return response.data.data
+  },
 }

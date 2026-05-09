@@ -14,13 +14,23 @@ import { PageContainer } from '../../../shared/components/PageContainer'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { ErrorMessage } from '../../../shared/components/ErrorMessage'
 import { formatDate, formatRelativeTime } from '../../../shared/utils/formatDate'
+import { useExhibitorEvent } from '../../exhibitorBooths/hooks/useExhibitorEvents'
 import { useEvent } from '../hooks/useEvent'
 import { BoothListPage } from '../../booths/pages/BoothListPage'
+import { ExhibitorBoothList } from '../../exhibitorBooths/components/ExhibitorBoothList'
 
-export function EventDetailPage() {
+interface EventDetailPageProps {
+  isExhibitor?: boolean
+}
+
+export function EventDetailPage({ isExhibitor = true }: EventDetailPageProps) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { event, isLoading, error } = useEvent(id || '')
+  const exhibitorQuery = useExhibitorEvent(isExhibitor ? (id || '') : '')
+  const visitorQuery = useEvent(!isExhibitor ? (id || '') : '')
+  const { event, isLoading, error } = isExhibitor ? exhibitorQuery : visitorQuery
+
+  const basePath = isExhibitor ? '/exhibitor' : '/visitor'
 
   if (!id) {
     return (
@@ -46,7 +56,7 @@ export function EventDetailPage() {
         <PageContainer>
           <ErrorMessage
             message="Failed to load event"
-            onRetry={() => navigate('/events')}
+            onRetry={() => navigate(basePath)}
           />
         </PageContainer>
       </Layout>
@@ -92,28 +102,45 @@ export function EventDetailPage() {
             )}
           </HStack>
 
-          <Button
-            leftIcon={<FiPlus />}
-            bg="brand.800"
-            color="white"
-            _hover={{ bg: 'brand.700' }}
-            size="lg"
-            w={{ base: 'full', md: 'auto' }}
-            onClick={() => navigate(`/events/${id}/booths/new`)}
-          >
-            Add Booth
-          </Button>
+          {isExhibitor && (
+            <Button
+              leftIcon={<FiPlus />}
+              bg="brand.800"
+              color="white"
+              _hover={{ bg: 'brand.700' }}
+              size="lg"
+              w={{ base: 'full', md: 'auto' }}
+              onClick={() => navigate(`${basePath}/events/${id}/booths/new`)}
+            >
+              Add Booth
+            </Button>
+          )}
 
           <Divider />
 
-          <VStack align="start" spacing={4} w="full">
-            <Heading size="md" color="brand.900">
-              Booths
-            </Heading>
-            <Box w="full">
-              <BoothListPage eventId={id} />
-            </Box>
-          </VStack>
+          {isExhibitor ? (
+            <>
+              <VStack align="start" spacing={4} w="full">
+                <Heading size="md" color="brand.900">
+                  My Exhibitor Booths
+                </Heading>
+                <Box w="full">
+                  <ExhibitorBoothList eventId={id} />
+                </Box>
+              </VStack>
+            </>
+          ) : (
+            <>
+              <VStack align="start" spacing={4} w="full">
+                <Heading size="md" color="brand.900">
+                  Visitor Scans
+                </Heading>
+                <Box w="full">
+                  <BoothListPage eventId={id} />
+                </Box>
+              </VStack>
+            </>
+          )}
         </VStack>
       </PageContainer>
     </Layout>

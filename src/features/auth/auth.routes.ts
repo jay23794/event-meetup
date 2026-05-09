@@ -57,4 +57,25 @@ router.get('/google', controller.googleAuth);
  */
 router.get('/google/callback', controller.googleAuthCallback);
 
+/**
+ * @swagger
+ * /auth/google/access-token:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Mint a fresh Google access token from the user's stored refresh token
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Returns a short-lived Google access token
+ *       401:
+ *         description: Unauthorized
+ *       412:
+ *         description: Google account not connected or refresh token expired
+ *       502:
+ *         description: Google authentication unavailable
+ */
+router.get('/google/access-token', authMiddleware, controller.googleAccessToken);
+
 export default router;

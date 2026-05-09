@@ -113,4 +113,40 @@ export class AuthService {
   async logout(_userId: string) {
     return { message: 'Logged out successfully' };
   }
+
+  async getGoogleAccessToken(userId: string): Promise<{ accessToken: string; expiresAt: number | null }> {
+    const user = await this.repository.findUserByIdWithRefreshToken(userId);
+    if (!user) {
+      throw ApiError.notFound('User not found');
+    }
+    if (!user.googleRefreshToken) {
+      throw new ApiError(412, 'Google account not connected — please reconnect', {
+        code: 'GOOGLE_NOT_CONNECTED',
+      });
+    }
+
+    try {
+      const client = createOAuthClient(user.googleRefreshToken);
+      const tokenResponse = await client.getAccessToken();
+      const accessToken = tokenResponse.token;
+      if (!accessToken) {
+        throw new ApiError(502, 'Failed to obtain Google access token', {
+          code: 'GOOGLE_API_ERROR',
+        });
+      }
+      const expiresAt = client.credentials.expiry_date ?? null;
+      return { accessToken, expiresAt };
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('invalid_grant')) {
+        throw new ApiError(412, 'Google account expired — please reconnect', {
+          code: 'GOOGLE_AUTH_EXPIRED',
+        });
+      }
+      throw new ApiError(502, 'Google authentication unavailable', {
+        code: 'GOOGLE_API_ERROR',
+      });
+    }
+  }
 }

@@ -70,7 +70,7 @@ export function HomeChooserPage() {
               title="Exhibitor"
               description="Set up your booth, upload brochures or business cards, and get a QR code visitors can scan."
               icon={<FiUsers />}
-              onClick={() => navigate('/events')}
+              onClick={() => navigate('/exhibitor')}
             />
             <ChooserCard
               title="Visitor"

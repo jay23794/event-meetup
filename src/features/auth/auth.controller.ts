@@ -27,6 +27,12 @@ export class AuthController {
     res.status(200).json(ApiResponse.success(null, 'Logout successful'));
   });
 
+  googleAccessToken = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id || '';
+    const result = await this.service.getGoogleAccessToken(userId);
+    res.status(200).json(ApiResponse.success(result));
+  });
+
   googleAuth = asyncHandler(async (_req: Request, res: Response) => {
     const oauth2Client = new OAuth2Client(
       config.GOOGLE_CLIENT_ID,

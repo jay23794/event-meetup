@@ -21,4 +21,8 @@ export class AuthRepository {
   async findUserById(id: string): Promise<IUser | null> {
     return User.findById(id);
   }
+
+  async findUserByIdWithRefreshToken(id: string): Promise<IUser | null> {
+    return User.findById(id).select('+googleRefreshToken');
+  }
 }

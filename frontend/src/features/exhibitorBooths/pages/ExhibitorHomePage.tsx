@@ -6,10 +6,10 @@ import { PageContainer } from '../../../shared/components/PageContainer'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { ErrorMessage } from '../../../shared/components/ErrorMessage'
 import { EmptyState } from '../../../shared/components/EmptyState'
-import { EventCard } from '../components/EventCard'
-import { useExhibitorEvents } from '../../exhibitorBooths/hooks/useExhibitorEvents'
+import { EventCard } from '../../events/components/EventCard'
+import { useExhibitorEvents } from '../hooks/useExhibitorEvents'
 
-export function EventsListPage() {
+export function ExhibitorHomePage() {
   const navigate = useNavigate()
   const { events, isLoading, error } = useExhibitorEvents()
 
@@ -46,7 +46,7 @@ export function EventsListPage() {
             bg="brand.800"
             color="white"
             _hover={{ bg: 'brand.700' }}
-            onClick={() => navigate('/events/new')}
+            onClick={() => navigate('/exhibitor/events/new')}
           >
             Create Event
           </Button>
@@ -55,7 +55,7 @@ export function EventsListPage() {
         {events.length === 0 ? (
           <EmptyState
             title="No events yet"
-            description="Create your first event to start scanning business cards"
+            description="Create your first event to start setting up booths"
           />
         ) : (
           <SimpleGrid

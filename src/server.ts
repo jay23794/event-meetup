@@ -10,7 +10,7 @@ const startServer = async (): Promise<void> => {
 
     await connectDB();
 
-    const server = app.listen(config.PORT, () => {
+    const server = app.listen(config.PORT,"0.0.0.0" ,() => {
       logger.info(`Server running at http://localhost:${config.PORT}`);
       logger.info(`Swagger docs at http://localhost:${config.PORT}/docs`);
     });

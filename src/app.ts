@@ -6,7 +6,6 @@ import cors from 'cors';
 import compression from 'compression';
 import swaggerUi from 'swagger-ui-express';
 import { nanoid } from 'nanoid';
-import { config } from './config/env';
 import { logger } from './config/logger';
 import { swaggerSpec } from './config/swagger';
 import { globalLimiter } from './shared/middleware/rateLimit.middleware';
@@ -80,6 +79,7 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/api/v1/events', eventRoutes);
 app.use('/api/v1/scan', scanRoutes);
 app.use('/api/v1/exhibitor/events', exhibitorEventRoutes);

@@ -39,7 +39,7 @@ export function SignInPage() {
   }, [token, navigate])
 
   const handleGoogleSignIn = () => {
-    const backendUrl = import.meta.env.VITE_API_URL.replace('/api/v1', '')
+    const backendUrl = import.meta.env.VITE_API_URL.replace('/api/v1', '/api/v1')
     window.location.href = `${backendUrl}/auth/google`
   }
 

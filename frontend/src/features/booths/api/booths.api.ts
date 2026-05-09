@@ -8,7 +8,7 @@ interface BoothsResponse {
   total: number
 }
 
-interface CreateBoothResponse {
+export interface CreateBoothResponse {
   boothId: string
   sheetRowNumber: number
 }

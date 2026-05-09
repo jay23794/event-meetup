@@ -4,6 +4,7 @@ import { SignInPage } from '../features/auth/pages/SignInPage'
 import { HomeChooserPage } from '../features/home/pages/HomeChooserPage'
 import { ExhibitorHomePage } from '../features/exhibitorBooths/pages/ExhibitorHomePage'
 import { VisitorHomePage } from '../features/visitor/pages/VisitorHomePage'
+import { PublicBoothPage } from '../features/exhibitorBooths/pages/PublicBoothPage'
 import { CreateEventPage } from '../features/events/pages/CreateEventPage'
 import { EventDetailPage } from '../features/events/pages/EventDetailPage'
 import { BoothFormPage } from '../features/booths/components/BoothFormPage'
@@ -31,6 +32,10 @@ export const routes: RouteObject[] = [
         <ExhibitorHomePage />
       </ProtectedRoute>
     ),
+  },
+  {
+    path: '/exhibitor/:qrId',
+    element: <PublicBoothPage />,
   },
   {
     path: '/exhibitor/events/new',

@@ -33,12 +33,17 @@ export class AuthController {
     res.status(200).json(ApiResponse.success(result));
   });
 
-  googleAuth = asyncHandler(async (_req: Request, res: Response) => {
+  googleAuth = asyncHandler(async (req: Request, res: Response) => {
     const oauth2Client = new OAuth2Client(
       config.GOOGLE_CLIENT_ID,
       config.GOOGLE_CLIENT_SECRET,
       config.GOOGLE_REDIRECT_URI
     );
+
+    const origin = (req.query.origin as string) || '';
+    const state = origin
+      ? Buffer.from(JSON.stringify({ origin })).toString('base64url')
+      : undefined;
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -49,16 +54,34 @@ export class AuthController {
         'https://www.googleapis.com/auth/spreadsheets',
       ],
       prompt: 'consent',
+      ...(state ? { state } : {}),
     });
 
     res.redirect(authUrl);
   });
 
+  private resolveFrontendUrl(req: Request): string {
+    const stateParam = req.query.state as string | undefined;
+    if (stateParam) {
+      try {
+        const decoded = JSON.parse(
+          Buffer.from(stateParam, 'base64url').toString('utf8')
+        );
+        if (decoded?.origin && typeof decoded.origin === 'string') {
+          return decoded.origin;
+        }
+      } catch {
+        // fall through to defaults
+      }
+    }
+    return process.env.FRONTEND_URL || 'http://localhost:5173';
+  }
+
   googleAuthCallback = asyncHandler(async (req: Request, res: Response) => {
     const { code } = req.query;
+    const frontendUrl = this.resolveFrontendUrl(req);
 
     if (!code) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(`${frontendUrl}/signin?error=No authorization code`);
     }
 
@@ -73,7 +96,6 @@ export class AuthController {
       const refreshToken = tokens.refresh_token;
 
       if (!refreshToken) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         return res.redirect(`${frontendUrl}/signin?error=No refresh token received`);
       }
 
@@ -87,7 +109,6 @@ export class AuthController {
       const payload = ticket.getPayload();
 
       if (!payload || !payload.email) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         return res.redirect(`${frontendUrl}/signin?error=Could not get user info from Google`);
       }
 
@@ -99,13 +120,11 @@ export class AuthController {
 
       const result = await this.service.googleSignIn(googleUserInfo, refreshToken);
 
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(
         `${frontendUrl}/signin?jwt=${encodeURIComponent(result.token)}&email=${encodeURIComponent(result.user.email)}&name=${encodeURIComponent(result.user.name)}`
       );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       res.redirect(`${frontendUrl}/signin?error=${encodeURIComponent(errorMsg)}`);
     }
   });

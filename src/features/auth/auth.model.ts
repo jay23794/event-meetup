@@ -10,6 +10,7 @@ export interface IUser extends Document {
   meetSyncRootFolderId?: string;
   myBoothsFolderId?: string;
   visitedBoothsFolderId?: string;
+  visitedBoothsSheetId?: string;
   hasCreatedBooth: boolean;
   hasScannedBooth: boolean;
   lastActiveAt?: Date;
@@ -28,6 +29,7 @@ const userSchema = new Schema<IUser>(
     meetSyncRootFolderId: String,
     myBoothsFolderId: String,
     visitedBoothsFolderId: String,
+    visitedBoothsSheetId: String,
     hasCreatedBooth: { type: Boolean, default: false, index: true },
     hasScannedBooth: { type: Boolean, default: false, index: true },
     lastActiveAt: Date,

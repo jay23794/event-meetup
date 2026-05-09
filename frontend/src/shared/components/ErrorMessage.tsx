@@ -30,7 +30,6 @@ export function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
           colorScheme="brand"
           variant="outline"
           size="sm"
-          align="center"
         >
           Try again
         </Button>

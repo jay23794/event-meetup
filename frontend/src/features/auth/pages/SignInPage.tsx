@@ -8,17 +8,13 @@ export function SignInPage() {
   const token = authStore((state) => state.token)
 
   useEffect(() => {
-    // If already logged in, redirect to events
-    if (token) {
-      navigate('/', { replace: true })
-      return
-    }
-
-    // Check for JWT in query params (from OAuth callback)
+    // Run once on mount — handle OAuth callback OR already-logged-in case
     const params = new URLSearchParams(window.location.search)
     const jwtFromUrl = params.get('jwt')
     const emailFromUrl = params.get('email')
     const nameFromUrl = params.get('name')
+
+    console.log('[SignIn] mount. jwtInUrl=', !!jwtFromUrl, 'tokenInStore=', !!authStore.getState().token)
 
     if (jwtFromUrl && emailFromUrl && nameFromUrl) {
       const setToken = authStore.getState().setToken
@@ -26,21 +22,35 @@ export function SignInPage() {
 
       setToken(jwtFromUrl)
       setUser({
-        id: '', // Will be fetched from /auth/me if needed
+        id: '',
         email: emailFromUrl,
         name: nameFromUrl,
         role: 'user',
       })
 
-      // Clean up URL and redirect
+      const stored = localStorage.getItem('meetSync_postLoginRedirect')
+      console.log('[SignIn] postLoginRedirect from localStorage:', stored)
+      const target = stored || '/'
+      if (stored) localStorage.removeItem('meetSync_postLoginRedirect')
+
       window.history.replaceState({}, document.title, '/signin')
+      console.log('[SignIn] OAuth complete → navigating to', target)
+      navigate(target, { replace: true })
+      return
+    }
+
+    // No OAuth params: if already logged in, just go home
+    if (authStore.getState().token) {
+      console.log('[SignIn] already logged in (no jwt in url) → navigating to /')
       navigate('/', { replace: true })
     }
-  }, [token, navigate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleGoogleSignIn = () => {
-    const backendUrl = import.meta.env.VITE_API_URL.replace('/api/v1', '/api/v1')
-    window.location.href = `${backendUrl}/auth/google`
+    const backendBase = import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '')
+    const origin = encodeURIComponent(window.location.origin)
+    window.location.href = `${backendBase}/auth/google?origin=${origin}`
   }
 
   return (

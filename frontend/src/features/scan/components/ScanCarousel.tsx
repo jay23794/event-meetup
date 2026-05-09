@@ -133,14 +133,16 @@ export function ScanCarousel({ eventId, onScansReady }: ScanCarouselProps) {
   const isMaxed = scans.length >= maxScans
 
   if (currentIndex !== null) {
-    const current = scans[currentIndex]
+    const current = scans[currentIndex]!
     if (current.status === 'capturing' || current.status === 'processing') {
       return (
         <ScanCapture
           onCapture={(file) => {
+            const idx = currentIndex!
+            const scan = scans[idx]!
             const newScans = [...scans]
-            newScans[currentIndex] = {
-              ...newScans[currentIndex],
+            newScans[idx] = {
+              ...scan,
               imageFile: file,
             }
             handleCapture(file)

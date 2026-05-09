@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -11,8 +11,9 @@ import {
   SimpleGrid,
   Text,
   VStack,
+  Icon,
 } from '@chakra-ui/react'
-import { FiCamera, FiPlus, FiMaximize } from 'react-icons/fi'
+import { FiCamera, FiPlus, FiMaximize, FiX, FiClock } from 'react-icons/fi'
 import { Layout } from '../../../shared/components/Layout'
 import { PageContainer } from '../../../shared/components/PageContainer'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
@@ -21,11 +22,30 @@ import { EmptyState } from '../../../shared/components/EmptyState'
 import { useToast } from '../../../shared/hooks/useToast'
 import { useEvents } from '../../events/hooks/useEvents'
 
+interface ScannedBooth {
+  boothName: string
+  qrId: string
+  scannedAt: string
+}
+
 export function VisitorHomePage() {
   const navigate = useNavigate()
   const { events, isLoading, error } = useEvents()
   const { info } = useToast()
   const eventsRef = useRef<HTMLDivElement>(null)
+  const [scannedBooths, setScannedBooths] = useState<ScannedBooth[]>([])
+
+  useEffect(() => {
+    const key = 'meetSync_scannedBooths'
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      try {
+        setScannedBooths(JSON.parse(stored))
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }, [])
 
   const handleScanQr = () => {
     info('Camera QR scanner coming soon — for now, scan with your phone camera and follow the link.')
@@ -38,6 +58,19 @@ export function VisitorHomePage() {
       return
     }
     eventsRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleRemoveScanned = (qrId: string) => {
+    const key = 'meetSync_scannedBooths'
+    const updated = scannedBooths.filter((b) => b.qrId !== qrId)
+    localStorage.setItem(key, JSON.stringify(updated))
+    setScannedBooths(updated)
+  }
+
+  const handleClearHistory = () => {
+    const key = 'meetSync_scannedBooths'
+    localStorage.removeItem(key)
+    setScannedBooths([])
   }
 
   return (
@@ -169,6 +202,69 @@ export function VisitorHomePage() {
               </SimpleGrid>
             )}
           </VStack>
+
+          {scannedBooths.length > 0 && (
+            <>
+              <Divider />
+
+              <VStack align="stretch" spacing={4}>
+                <HStack justify="space-between" wrap="wrap">
+                  <Heading size="md" color="brand.900">
+                    Scanned Booths
+                  </Heading>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="red"
+                    onClick={handleClearHistory}
+                  >
+                    Clear history
+                  </Button>
+                </HStack>
+
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                  {scannedBooths.map((booth) => (
+                    <Card
+                      key={booth.qrId}
+                      position="relative"
+                      transition="box-shadow 0.15s"
+                      _hover={{ shadow: 'md' }}
+                    >
+                      <CardBody>
+                        <VStack align="start" spacing={2}>
+                          <HStack justify="space-between" w="full">
+                            <Text fontWeight="medium" color="brand.900" flex={1} noOfLines={1}>
+                              {booth.boothName}
+                            </Text>
+                            <Box
+                              as="button"
+                              type="button"
+                              onClick={() => handleRemoveScanned(booth.qrId)}
+                              p={1}
+                              borderRadius="md"
+                              _hover={{ bg: 'gray.100' }}
+                            >
+                              <Icon as={FiX} w={4} h={4} color="gray.500" />
+                            </Box>
+                          </HStack>
+                          <HStack spacing={1} fontSize="xs" color="gray.500">
+                            <Icon as={FiClock} w={3} h={3} />
+                            <Text>
+                              {new Date(booth.scannedAt).toLocaleDateString()} at{' '}
+                              {new Date(booth.scannedAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </Text>
+                          </HStack>
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </SimpleGrid>
+              </VStack>
+            </>
+          )}
         </VStack>
       </PageContainer>
     </Layout>

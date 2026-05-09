@@ -45,7 +45,7 @@ export function ExhibitorBoothCard({ booth }: ExhibitorBoothCardProps) {
             size="sm"
             variant="outline"
             w="full"
-            onClick={() => navigate(`/events/${booth.eventId}/booths/${booth.id}/qr`)}
+            onClick={() => navigate(`/exhibitor/events/${booth.eventId}/booths/${booth.id}/qr`)}
           >
             View QR Code
           </Button>

@@ -1,6 +1,9 @@
 import { ExhibitorDocumentRepository } from './exhibitorDocument.repository';
 import { ExhibitorBoothRepository } from '@/features/exhibitorBooth/exhibitorBooth.repository';
+import { AuthRepository } from '@/features/auth/auth.repository';
 import { ApiError } from '@/shared/utils/ApiError';
+import { createOAuthClient } from '@/shared/google/oauth.client';
+import { DriveClient } from '@/shared/google/drive.client';
 import {
   CreateExhibitorDocumentInput,
   ListExhibitorDocumentsQuery,
@@ -9,10 +12,14 @@ import {
 export class ExhibitorDocumentService {
   private repository: ExhibitorDocumentRepository;
   private boothRepository: ExhibitorBoothRepository;
+  private authRepository: AuthRepository;
+  private driveClient: DriveClient;
 
   constructor() {
     this.repository = new ExhibitorDocumentRepository();
     this.boothRepository = new ExhibitorBoothRepository();
+    this.authRepository = new AuthRepository();
+    this.driveClient = new DriveClient(null as any);
   }
 
   private async assertBoothOwnership(userId: string, boothId: string) {
@@ -28,6 +35,18 @@ export class ExhibitorDocumentService {
 
   async createDocument(userId: string, boothId: string, payload: CreateExhibitorDocumentInput) {
     const booth = await this.assertBoothOwnership(userId, boothId);
+
+    if (payload.isPublic) {
+      const user = await this.authRepository.findUserByIdWithRefreshToken(userId);
+      if (user?.googleRefreshToken) {
+        try {
+          const oauth = createOAuthClient(user.googleRefreshToken);
+          await this.driveClient.setPublicPermission(oauth, payload.driveFileId);
+        } catch (error) {
+          console.error('[ExhibitorDocumentService] Failed to set public permission:', error);
+        }
+      }
+    }
 
     const document = await this.repository.create({
       ownerUserId: userId,

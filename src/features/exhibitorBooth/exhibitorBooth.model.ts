@@ -9,6 +9,9 @@ export interface IExhibitorBooth extends Document {
   qrUrl: string;
   documentCount: number;
   scanCount: number;
+  visitorSheetId?: string;
+  visitorSheetUrl?: string;
+  visitorSheetCreated: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +26,9 @@ const exhibitorBoothSchema = new Schema<IExhibitorBooth>(
     qrUrl: { type: String, required: true },
     documentCount: { type: Number, default: 0 },
     scanCount: { type: Number, default: 0 },
+    visitorSheetId: String,
+    visitorSheetUrl: String,
+    visitorSheetCreated: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

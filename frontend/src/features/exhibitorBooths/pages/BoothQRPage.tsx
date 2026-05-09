@@ -22,7 +22,7 @@ import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { ErrorMessage } from '../../../shared/components/ErrorMessage'
 import { useToast } from '../../../shared/hooks/useToast'
 import { useBooth } from '../hooks/useExhibitorBooths'
-import { useEvent } from '../../events/hooks/useEvent'
+import { useExhibitorEvent } from '../hooks/useExhibitorEvents'
 
 const PRINT_CSS = `
 @media print {
@@ -54,7 +54,7 @@ export function BoothQRPage() {
   const { success: showSuccess, error: showError } = useToast()
 
   const { booth, isLoading: boothLoading, error: boothError } = useBooth(boothId || '')
-  const { event } = useEvent(eventId || '')
+  const { event } = useExhibitorEvent(eventId || '')
 
   const qrWrapperRef = useRef<HTMLDivElement>(null)
 
@@ -84,7 +84,7 @@ export function BoothQRPage() {
         <PageContainer>
           <ErrorMessage
             message="Could not load booth. It may have been deleted or you don't have access."
-            onRetry={() => navigate(`/events/${eventId}`)}
+            onRetry={() => navigate(`/exhibitor/events/${eventId}`)}
           />
         </PageContainer>
       </Layout>
@@ -218,7 +218,7 @@ export function BoothQRPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/events/${eventId}`)}
+                  onClick={() => navigate(`/exhibitor/events/${eventId}`)}
                 >
                   Back to event
                 </Button>

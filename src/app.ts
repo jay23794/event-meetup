@@ -1,5 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -16,6 +17,7 @@ import eventRoutes from './features/event/event.routes';
 import scanRoutes from './features/scan/scan.routes';
 import exhibitorEventRoutes from './features/exhibitorEvent/exhibitorEvent.routes';
 import exhibitorBoothRoutes from './features/exhibitorBooth/exhibitorBooth.routes';
+import exhibitorBoothPublicRoutes from './features/exhibitorBooth/exhibitorBooth.public.routes';
 import exhibitorDocumentRoutes from './features/exhibitorDocument/exhibitorDocument.routes';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +25,19 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "https://www.googleapis.com", "https://accounts.google.com"],
+      fontSrc: ["'self'", "data:", "https:"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
+    },
+  },
+}));
 app.use(cors());
 app.use(compression());
 app.use(globalLimiter);
@@ -78,6 +92,11 @@ app.get('/health', (_req: Request, res: Response) => {
   );
 });
 
+// Public routes (no auth required) — mounted at both paths so frontend (with /api/v1 baseURL) and direct calls both work
+app.use('/public/exhibitor-booths', exhibitorBoothPublicRoutes);
+app.use('/api/v1/public/exhibitor-booths', exhibitorBoothPublicRoutes);
+
+// Protected routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/v1/events', eventRoutes);
@@ -86,8 +105,14 @@ app.use('/api/v1/exhibitor/events', exhibitorEventRoutes);
 app.use('/api/v1/exhibitor', exhibitorBoothRoutes);
 app.use('/api/v1/exhibitor', exhibitorDocumentRoutes);
 
-app.use((_req: Request, res: Response) => {
-  res.status(404).json(ApiResponse.error('Route not found'));
+// SPA fallback: serve index.html for any non-API routes
+app.get('*', (_req: Request, res: Response) => {
+  const indexPath = path.join(__dirname, '../public/index.html');
+  if (existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json(ApiResponse.error('Route not found'));
+  }
 });
 
 app.use(errorMiddleware);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -46,9 +46,20 @@ interface ScannedBooth {
 
 export function PublicBoothPage() {
   const { qrId } = useParams<{ qrId: string }>()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const token = authStore((state) => state.token)
   const user = authStore((state) => state.user)
   const [checkInState, setCheckInState] = useState<'idle' | 'success' | 'already'>('idle')
+
+  // After a successful check-in (or "already checked in"), send the visitor to
+  // their scanned-booths page so they can see the doc list.
+  useEffect(() => {
+    if (checkInState === 'idle') return
+    queryClient.invalidateQueries({ queryKey: ['visitor', 'scannedBooths'] })
+    const timer = setTimeout(() => navigate('/visitor'), 1500)
+    return () => clearTimeout(timer)
+  }, [checkInState, navigate, queryClient])
 
   useEffect(() => {
     console.log('[PublicBoothPage] mounted. qrId=', qrId, 'token=', token ? 'present' : 'null')
@@ -313,6 +324,15 @@ export function PublicBoothPage() {
                   <Text color="green.700">
                     {booth.boothName} has your details. Thanks for visiting!
                   </Text>
+                  <Button
+                    size="sm"
+                    bg="green.600"
+                    color="white"
+                    _hover={{ bg: 'green.700' }}
+                    onClick={() => navigate('/visitor')}
+                  >
+                    View my scanned booths
+                  </Button>
                 </VStack>
               </CardBody>
             </Card>
@@ -332,6 +352,15 @@ export function PublicBoothPage() {
                   <Text color="blue.700">
                     You've already visited this booth. We have your information!
                   </Text>
+                  <Button
+                    size="sm"
+                    bg="blue.600"
+                    color="white"
+                    _hover={{ bg: 'blue.700' }}
+                    onClick={() => navigate('/visitor')}
+                  >
+                    View my scanned booths
+                  </Button>
                 </VStack>
               </CardBody>
             </Card>

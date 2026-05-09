@@ -35,7 +35,9 @@ export function useBooth(boothId: string) {
     queryKey: ['exhibitor-booth', boothId],
     queryFn: () => exhibitorBoothsApi.getBooth(boothId),
     enabled: !!boothId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
   return {
@@ -50,7 +52,9 @@ export function useExhibitorBooths(eventId: string) {
     queryKey: ['exhibitor-booths', eventId],
     queryFn: () => exhibitorBoothsApi.listByEvent(eventId),
     enabled: !!eventId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
   return {

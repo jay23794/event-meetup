@@ -19,6 +19,7 @@ import exhibitorEventRoutes from './features/exhibitorEvent/exhibitorEvent.route
 import exhibitorBoothRoutes from './features/exhibitorBooth/exhibitorBooth.routes';
 import exhibitorBoothPublicRoutes from './features/exhibitorBooth/exhibitorBooth.public.routes';
 import exhibitorDocumentRoutes from './features/exhibitorDocument/exhibitorDocument.routes';
+import visitorRoutes from './features/visitor/visitor.routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,6 +105,7 @@ app.use('/api/v1/scan', scanRoutes);
 app.use('/api/v1/exhibitor/events', exhibitorEventRoutes);
 app.use('/api/v1/exhibitor', exhibitorBoothRoutes);
 app.use('/api/v1/exhibitor', exhibitorDocumentRoutes);
+app.use('/api/v1/visitor', visitorRoutes);
 
 // SPA fallback: serve index.html for any non-API routes
 app.get('*', (_req: Request, res: Response) => {

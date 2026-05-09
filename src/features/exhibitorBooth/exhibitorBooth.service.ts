@@ -161,11 +161,18 @@ export class ExhibitorBoothService {
       console.log('[CheckIn] Step 3/4 SKIPPED (already checked in)');
     }
 
+    // Look up booth's public documents — used both for sharing and for sheet column
+    const publicDocuments = await ExhibitorDocument.find({
+      exhibitorBoothId: booth._id,
+      isPublic: true,
+    });
+    const sharedDocUrls = publicDocuments.map((d) => d.driveFileUrl).filter(Boolean);
+
     // Share booth's public documents with visitor's email so they show up in their Drive "Shared with me"
     try {
       console.log('[CheckIn] sharing public docs with visitor');
       await this.shareDocumentsWithVisitor(
-        booth._id.toString(),
+        publicDocuments,
         exhibitor.googleRefreshToken,
         visitorData.email
       );
@@ -195,7 +202,7 @@ export class ExhibitorBoothService {
           if (!visitorAlreadyScanned) {
             await this.ensureVisitorScannedBoothSheet(visitor);
             console.log('[CheckIn] visitor sheet ensured', { sheetId: visitor.visitedBoothsSheetId });
-            await this.appendToVisitorSheet(visitor, booth, event.name);
+            await this.appendToVisitorSheet(visitor, booth, event.name, sharedDocUrls);
             console.log('[CheckIn] Step 4/4 OK: appended row to visitor sheet');
           } else {
             console.log('[CheckIn] Step 4/4 SKIPPED (already in visitor sheet)');
@@ -220,15 +227,10 @@ export class ExhibitorBoothService {
   }
 
   private async shareDocumentsWithVisitor(
-    boothId: string,
+    documents: any[],
     exhibitorRefreshToken: string,
     visitorEmail: string
   ): Promise<void> {
-    const documents = await ExhibitorDocument.find({
-      exhibitorBoothId: boothId,
-      isPublic: true,
-    });
-
     console.log('[CheckIn] found public documents to share', { count: documents.length });
     if (documents.length === 0) return;
 
@@ -352,6 +354,7 @@ export class ExhibitorBoothService {
       'Booth Name',
       'Event',
       'Booth QR ID',
+      'Shared Documents',
     ]);
 
     await this.authRepository.updateUser(visitor._id.toString(), {
@@ -385,7 +388,8 @@ export class ExhibitorBoothService {
   private async appendToVisitorSheet(
     visitor: any,
     booth: any,
-    eventName: string
+    eventName: string,
+    sharedDocUrls: string[] = []
   ): Promise<void> {
     const auth = createOAuthClient(visitor.googleRefreshToken);
     const sheetsClient = new SheetsClient(auth);
@@ -396,8 +400,86 @@ export class ExhibitorBoothService {
       booth.boothName,
       eventName,
       booth.qrId,
+      sharedDocUrls.join(', '),
     ];
 
     await sheetsClient.appendRow(visitor.visitedBoothsSheetId, rowData);
+  }
+
+  async listVisitorScannedBooths(userId: string): Promise<
+    Array<{
+      timestamp: string;
+      boothName: string;
+      eventName: string;
+      qrId: string;
+      sharedDocuments: Array<{
+        url: string;
+        fileId?: string;
+        fileName?: string;
+        mimeType?: string;
+        fileType?: 'card' | 'brochure';
+        thumbnailUrl?: string;
+      }>;
+    }>
+  > {
+    const visitor = await this.authRepository.findUserByIdWithRefreshToken(userId);
+    if (!visitor) return [];
+    if (!visitor.visitedBoothsSheetId || !visitor.googleRefreshToken) return [];
+
+    const auth = createOAuthClient(visitor.googleRefreshToken);
+    const sheetsClient = new SheetsClient(auth);
+
+    try {
+      const rows = await sheetsClient.readRange(
+        visitor.visitedBoothsSheetId,
+        'Sheet1!A2:E'
+      );
+
+      const parsed = rows
+        .filter((row) => Array.isArray(row) && row.length > 0)
+        .map((row) => {
+          const r = row as unknown[];
+          const urls = typeof r[4] === 'string' && r[4]
+            ? (r[4] as string).split(',').map((s) => s.trim()).filter(Boolean)
+            : [];
+          return {
+            timestamp: (r[0] as string) ?? '',
+            boothName: (r[1] as string) ?? '',
+            eventName: (r[2] as string) ?? '',
+            qrId: (r[3] as string) ?? '',
+            urls,
+          };
+        })
+        .filter((entry) => entry.qrId);
+
+      // Enrich docs with metadata in one query
+      const allUrls = Array.from(new Set(parsed.flatMap((p) => p.urls)));
+      const docs = allUrls.length
+        ? await ExhibitorDocument.find({ driveFileUrl: { $in: allUrls } })
+        : [];
+      const docByUrl = new Map(docs.map((d) => [d.driveFileUrl, d]));
+
+      return parsed.map((entry) => ({
+        timestamp: entry.timestamp,
+        boothName: entry.boothName,
+        eventName: entry.eventName,
+        qrId: entry.qrId,
+        sharedDocuments: entry.urls.map((url) => {
+          const doc = docByUrl.get(url);
+          if (!doc) return { url };
+          return {
+            url,
+            fileId: doc.driveFileId,
+            fileName: doc.fileName,
+            mimeType: doc.mimeType,
+            fileType: doc.fileType,
+            thumbnailUrl: `https://drive.google.com/thumbnail?id=${doc.driveFileId}&sz=w400`,
+          };
+        }),
+      }));
+    } catch (error) {
+      console.error('[ListVisitorScannedBooths] read failed:', error);
+      return [];
+    }
   }
 }

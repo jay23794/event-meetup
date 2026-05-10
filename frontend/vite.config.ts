@@ -10,7 +10,7 @@ export default defineConfig({
     
   },
   build: {
-    outDir: '../public',
+    outDir: process.env.VITE_BUILD_TARGET === 'static' ? 'dist' : '../public',
     emptyOutDir: true,
     sourcemap: false,
   },

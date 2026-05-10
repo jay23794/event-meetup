@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config/load-env';
 import { config } from './config/env';
 import { logger } from './config/logger';
 import { connectDB, disconnectDB } from './config/db';

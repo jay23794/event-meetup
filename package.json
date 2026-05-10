@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "tsx src/server.ts",
+    "prod": "NODE_ENV=production tsx src/server.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write 'src/**/*.ts'",
     "typecheck": "tsc --noEmit",
@@ -42,6 +43,8 @@
     "sharp": "^0.33.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -50,8 +53,6 @@
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "eslint": "^8.56.0",
-    "prettier": "^3.1.1",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "prettier": "^3.1.1"
   }
 }

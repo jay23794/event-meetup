@@ -73,4 +73,11 @@ export class ExhibitorBoothRepository {
   ): Promise<IExhibitorBooth | null> {
     return ExhibitorBooth.findByIdAndUpdate(boothId, data, { new: true });
   }
+
+  async updateDocExtractSheet(
+    boothId: string,
+    data: { docExtractSheetId: string; docExtractSheetUrl: string; docExtractSheetCreated: boolean }
+  ): Promise<IExhibitorBooth | null> {
+    return ExhibitorBooth.findByIdAndUpdate(boothId, data, { new: true });
+  }
 }

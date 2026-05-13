@@ -96,4 +96,41 @@ export const exhibitorBoothsApi = {
     >(`/exhibitor/booths/${boothId}/documents`, input)
     return mapDocument(response.data.data.document)
   },
+
+  extractDocument: async (
+    boothId: string,
+    docId: string,
+    rawText: string
+  ): Promise<ExhibitorBoothDocument> => {
+    const response = await axios.post<
+      ApiResponse<{ document: ExhibitorBoothDocumentResponse }>
+    >(`/exhibitor/booths/${boothId}/documents/${docId}/extract`, { rawText })
+    return mapDocument(response.data.data.document)
+  },
+
+  createBoothWithDocuments: async (
+    eventId: string,
+    input: {
+      boothName: string
+      description: string
+      documents: Array<{ rawText: string; fileType: 'card' | 'brochure'; fileName: string }>
+    }
+  ): Promise<{
+    booth: ExhibitorBooth
+    documents: Array<{ id: string; fileName: string; fileType: string; extractedEmail?: string; extractedName?: string }>
+    sheetUrl: string
+  }> => {
+    const response = await axios.post<
+      ApiResponse<{
+        booth: ExhibitorBoothResponse
+        documents: Array<any>
+        sheetUrl: string
+      }>
+    >(`/exhibitor/events/${eventId}/booths/create-with-documents`, input)
+    return {
+      booth: mapBooth(response.data.data.booth),
+      documents: response.data.data.documents,
+      sheetUrl: response.data.data.sheetUrl,
+    }
+  },
 }

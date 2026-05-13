@@ -12,6 +12,9 @@ export interface IExhibitorBooth extends Document {
   visitorSheetId?: string;
   visitorSheetUrl?: string;
   visitorSheetCreated: boolean;
+  docExtractSheetId?: string;
+  docExtractSheetUrl?: string;
+  docExtractSheetCreated: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +32,9 @@ const exhibitorBoothSchema = new Schema<IExhibitorBooth>(
     visitorSheetId: String,
     visitorSheetUrl: String,
     visitorSheetCreated: { type: Boolean, default: false },
+    docExtractSheetId: String,
+    docExtractSheetUrl: String,
+    docExtractSheetCreated: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

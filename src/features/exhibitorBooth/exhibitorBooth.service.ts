@@ -3,13 +3,17 @@ import { google } from 'googleapis';
 import { ExhibitorBoothRepository } from './exhibitorBooth.repository';
 import { EventRepository } from '@/features/event/event.repository';
 import { AuthRepository } from '@/features/auth/auth.repository';
+import { ExhibitorDocumentRepository } from '@/features/exhibitorDocument/exhibitorDocument.repository';
 import { ExhibitorDocument } from '@/features/exhibitorDocument/exhibitorDocument.model';
 import { ApiError } from '@/shared/utils/ApiError';
 import { config } from '@/config/env';
-import { CreateExhibitorBoothInput, UpdateExhibitorBoothInput } from './exhibitorBooth.schema';
+import { CreateExhibitorBoothInput, UpdateExhibitorBoothInput, CreateBoothWithDocumentsInput } from './exhibitorBooth.schema';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { SheetsClient } from '@/shared/google/sheets.client';
+import { DriveClient } from '@/shared/google/drive.client';
 import { verifyToken } from '@/shared/utils/jwt';
+import { anthropic } from '@/config/anthropic';
+import { DOCUMENT_EXTRACTION_PROMPT } from '@/features/scan/scan.prompt';
 
 const generateQrId = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -20,11 +24,13 @@ export class ExhibitorBoothService {
   private repository: ExhibitorBoothRepository;
   private eventRepository: EventRepository;
   private authRepository: AuthRepository;
+  private docRepository: ExhibitorDocumentRepository;
 
   constructor() {
     this.repository = new ExhibitorBoothRepository();
     this.eventRepository = new EventRepository();
     this.authRepository = new AuthRepository();
+    this.docRepository = new ExhibitorDocumentRepository();
   }
 
   async createBooth(userId: string, eventId: string, payload: CreateExhibitorBoothInput) {
@@ -480,6 +486,167 @@ export class ExhibitorBoothService {
     } catch (error) {
       console.error('[ListVisitorScannedBooths] read failed:', error);
       return [];
+    }
+  }
+
+  async createBoothWithDocuments(
+    userId: string,
+    eventId: string,
+    payload: CreateBoothWithDocumentsInput & { documents: Array<{ rawText: string; fileType: 'card' | 'brochure'; fileName: string }> }
+  ) {
+    const event = await this.eventRepository.findEventById(eventId);
+    if (!event) {
+      throw ApiError.notFound('Event not found');
+    }
+    if (event.ownerUserId.toString() !== userId) {
+      throw ApiError.forbidden('You do not have access to this event');
+    }
+
+    const user = await this.authRepository.findUserByIdWithRefreshToken(userId);
+    if (!user?.googleRefreshToken) {
+      throw new ApiError(412, 'Google account connection required');
+    }
+
+    // Create booth
+    const qrId = generateQrId();
+    const qrUrl = `${config.PUBLIC_APP_URL}/exhibitor/${qrId}`;
+
+    const booth = await this.repository.create({
+      ownerUserId: userId,
+      eventId,
+      boothName: payload.boothName,
+      description: payload.description,
+      qrId,
+      qrUrl,
+    });
+
+    let sheetUrl = '';
+
+    try {
+      const oauth = createOAuthClient(user.googleRefreshToken);
+      const sheetsClient = new SheetsClient(oauth);
+
+      // Create extraction sheet
+      const sheetTitle = `${booth.boothName} - Document Extractions`;
+      const { sheetId, sheetUrl: newSheetUrl } = await sheetsClient.createSheet(sheetTitle);
+      sheetUrl = newSheetUrl;
+
+      await sheetsClient.addHeaderRow(sheetId, [
+        'Timestamp',
+        'File Name',
+        'File Type',
+        'Name',
+        'Company',
+        'Title',
+        'Phone',
+        'Email',
+        'Website',
+        'Address',
+        'Raw Text',
+      ]);
+
+      await this.repository.updateDocExtractSheet(booth._id.toString(), {
+        docExtractSheetId: sheetId,
+        docExtractSheetUrl: newSheetUrl,
+        docExtractSheetCreated: true,
+      });
+
+      // Process documents
+      const processedDocs = [];
+
+      for (const doc of payload.documents) {
+        try {
+          // Extract and structure text
+          const response = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 1024,
+            messages: [
+              {
+                role: 'user',
+                content: `${DOCUMENT_EXTRACTION_PROMPT}\n\nOCR Text:\n${doc.rawText}`,
+              },
+            ],
+          });
+
+          const textContent = response.content.find((c) => c.type === 'text');
+          if (!textContent || textContent.type !== 'text') {
+            throw new ApiError(502, 'Anthropic API returned unexpected response');
+          }
+
+          let cleanText = textContent.text.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(cleanText);
+
+          // Create document in DB
+          const createdDoc = await this.docRepository.create({
+            ownerUserId: userId,
+            exhibitorBoothId: booth._id.toString(),
+            eventId,
+            driveFileId: '', // No file upload in this flow
+            driveFileUrl: '', // These would be filled if we uploaded to Drive
+            fileName: doc.fileName,
+            fileType: doc.fileType,
+            extractedText: doc.rawText,
+            extractedName: parsed.name || undefined,
+            extractedCompany: parsed.company || undefined,
+            extractedTitle: parsed.title || undefined,
+            extractedPhone: parsed.phone || undefined,
+            extractedEmail: parsed.email || undefined,
+            extractedWebsite: parsed.website || undefined,
+            extractedAddress: parsed.address || undefined,
+            extractionStatus: 'success',
+            isPublic: false,
+          });
+
+          // Append to sheet
+          await sheetsClient.appendRow(sheetId, [
+            new Date().toISOString(),
+            doc.fileName,
+            doc.fileType,
+            parsed.name || '',
+            parsed.company || '',
+            parsed.title || '',
+            parsed.phone || '',
+            parsed.email || '',
+            parsed.website || '',
+            parsed.address || '',
+            doc.rawText.substring(0, 500),
+          ]);
+
+          processedDocs.push({
+            id: createdDoc._id,
+            fileName: createdDoc.fileName,
+            fileType: createdDoc.fileType,
+            extractedName: createdDoc.extractedName,
+            extractedCompany: createdDoc.extractedCompany,
+            extractedEmail: createdDoc.extractedEmail,
+            extractedPhone: createdDoc.extractedPhone,
+            extractedTitle: createdDoc.extractedTitle,
+            extractedWebsite: createdDoc.extractedWebsite,
+            extractedAddress: createdDoc.extractedAddress,
+          });
+        } catch (err) {
+          console.error('[CreateBoothWithDocuments] Document processing error:', err);
+          // Continue processing other documents
+        }
+      }
+
+      return {
+        booth: {
+          id: booth._id,
+          boothName: booth.boothName,
+          description: booth.description,
+          qrId: booth.qrId,
+          qrUrl: booth.qrUrl,
+        },
+        documents: processedDocs,
+        sheetUrl,
+      };
+    } catch (error) {
+      // Clean up booth if sheet creation fails
+      if (error instanceof ApiError && error.statusCode === 412) {
+        throw error;
+      }
+      throw new ApiError(502, 'Failed to create booth with documents', { originalError: error instanceof Error ? error.message : 'Unknown' });
     }
   }
 }

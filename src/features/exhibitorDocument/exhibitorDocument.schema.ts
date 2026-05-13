@@ -10,9 +10,14 @@ export const createExhibitorDocumentSchema = z.object({
   isPublic: z.boolean().optional().default(false),
 });
 
+export const extractDocumentSchema = z.object({
+  rawText: z.string().min(1, 'Raw text is required'),
+});
+
 export const listExhibitorDocumentsQuerySchema = z.object({
   fileType: z.enum(['card', 'brochure']).optional(),
 });
 
 export type CreateExhibitorDocumentInput = z.infer<typeof createExhibitorDocumentSchema>;
+export type ExtractDocumentInput = z.infer<typeof extractDocumentSchema>;
 export type ListExhibitorDocumentsQuery = z.infer<typeof listExhibitorDocumentsQuerySchema>;

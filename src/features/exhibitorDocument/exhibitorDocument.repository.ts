@@ -13,6 +13,15 @@ export class ExhibitorDocumentRepository {
     mimeType?: string;
     sizeBytes?: number;
     isPublic?: boolean;
+    extractedText?: string;
+    extractedName?: string;
+    extractedCompany?: string;
+    extractedTitle?: string;
+    extractedPhone?: string;
+    extractedEmail?: string;
+    extractedWebsite?: string;
+    extractedAddress?: string;
+    extractionStatus?: 'pending' | 'success' | 'failed';
   }): Promise<IExhibitorDocument> {
     const document = new ExhibitorDocument({
       ownerUserId: new mongoose.Types.ObjectId(data.ownerUserId),
@@ -25,6 +34,15 @@ export class ExhibitorDocumentRepository {
       mimeType: data.mimeType,
       sizeBytes: data.sizeBytes,
       isPublic: data.isPublic ?? false,
+      extractedText: data.extractedText,
+      extractedName: data.extractedName,
+      extractedCompany: data.extractedCompany,
+      extractedTitle: data.extractedTitle,
+      extractedPhone: data.extractedPhone,
+      extractedEmail: data.extractedEmail,
+      extractedWebsite: data.extractedWebsite,
+      extractedAddress: data.extractedAddress,
+      extractionStatus: data.extractionStatus ?? 'pending',
     });
     return document.save();
   }
@@ -48,5 +66,12 @@ export class ExhibitorDocumentRepository {
 
   async deleteById(docId: string): Promise<IExhibitorDocument | null> {
     return ExhibitorDocument.findByIdAndDelete(new mongoose.Types.ObjectId(docId));
+  }
+
+  async updateById(docId: string, patch: Partial<IExhibitorDocument>): Promise<IExhibitorDocument | null> {
+    if (!mongoose.Types.ObjectId.isValid(docId)) {
+      return null;
+    }
+    return ExhibitorDocument.findByIdAndUpdate(new mongoose.Types.ObjectId(docId), patch, { new: true });
   }
 }

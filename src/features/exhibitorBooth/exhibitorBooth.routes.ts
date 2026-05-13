@@ -5,12 +5,74 @@ import { validate } from '@/shared/middleware/validate.middleware';
 import {
   createExhibitorBoothSchema,
   updateExhibitorBoothSchema,
+  createBoothWithDocumentsSchema,
 } from './exhibitorBooth.schema';
 
 const router = Router({ mergeParams: true });
 const controller = new ExhibitorBoothController();
 
 router.use(authMiddleware);
+
+/**
+ * @swagger
+ * /api/v1/exhibitor/events/{eventId}/booths/create-with-documents:
+ *   post:
+ *     tags:
+ *       - Exhibitor Booths
+ *     summary: Create booth with extracted documents (optimized single call)
+ *     description: "Single API call to create booth + process extracted documents. Handles Anthropic structuring, MongoDB persistence, and Google Sheets sync in one atomic transaction."
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "65a1b2c3d4e5f6a7b8c9d0e1"
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - boothName
+ *               - description
+ *               - documents
+ *             properties:
+ *               boothName:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               documents:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     rawText:
+ *                       type: string
+ *                       description: OCR text extracted from the document
+ *                     fileType:
+ *                       type: string
+ *                       enum: [card, brochure]
+ *                     fileName:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Booth created with documents processed
+ *       400:
+ *         description: Validation error
+ *       412:
+ *         description: Google account not connected
+ *       502:
+ *         description: Extraction failed
+ */
+router.post(
+  '/events/:eventId/booths/create-with-documents',
+  validate(createBoothWithDocumentsSchema),
+  controller.createBoothWithDocuments
+);
 
 /**
  * @swagger

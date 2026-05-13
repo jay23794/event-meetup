@@ -11,6 +11,15 @@ export interface IExhibitorDocument extends Document {
   mimeType?: string;
   sizeBytes?: number;
   isPublic: boolean;
+  extractedText?: string;
+  extractedName?: string;
+  extractedCompany?: string;
+  extractedTitle?: string;
+  extractedPhone?: string;
+  extractedEmail?: string;
+  extractedWebsite?: string;
+  extractedAddress?: string;
+  extractionStatus: 'pending' | 'success' | 'failed';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +36,15 @@ const exhibitorDocumentSchema = new Schema<IExhibitorDocument>(
     mimeType: String,
     sizeBytes: Number,
     isPublic: { type: Boolean, default: false },
+    extractedText: String,
+    extractedName: String,
+    extractedCompany: String,
+    extractedTitle: String,
+    extractedPhone: String,
+    extractedEmail: String,
+    extractedWebsite: String,
+    extractedAddress: String,
+    extractionStatus: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
   },
   { timestamps: true }
 );

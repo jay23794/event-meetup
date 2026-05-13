@@ -115,4 +115,14 @@ export class ExhibitorBoothController {
       ApiResponse.success({ documents }, 'Public documents retrieved')
     );
   });
+
+  createBoothWithDocuments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { eventId } = req.params as { eventId?: string };
+    const userId = req.user?.id;
+    if (!userId || !eventId) {
+      return res.status(401).json(ApiResponse.error('Unauthorized'));
+    }
+    const result = await this.service.createBoothWithDocuments(userId, eventId, req.body);
+    res.status(201).json(ApiResponse.success(result, 'Booth created with documents'));
+  });
 }

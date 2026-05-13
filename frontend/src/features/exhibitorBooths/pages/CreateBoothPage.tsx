@@ -40,10 +40,14 @@ import {
 } from '../../../shared/google/drive.client'
 import { exhibitorBoothsApi } from '../api/exhibitorBooths.api'
 import { ExhibitorDocumentFileType } from '../types'
+import { useTesseractExtraction } from '../hooks/useTesseractExtraction'
+import { TextExtractionModal } from '../components/TextExtractionModal'
+import { extractPDFPages, canvasToFile } from '../utils/pdfExtractor'
 import axios from 'axios'
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024
+const MAX_FILE_BYTES = 20 * 1024 * 1024
 const UPLOAD_CONCURRENCY = 3
+const MAX_PDF_PAGES = 4
 
 const formSchema = z.object({
   boothName: z
@@ -58,7 +62,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-type DocStatus = 'pending' | 'uploading' | 'done' | 'error'
+type DocStatus = 'pending' | 'extracting' | 'uploading' | 'done' | 'error'
 
 interface DocumentEntry {
   id: string
@@ -69,6 +73,9 @@ interface DocumentEntry {
   driveFileId?: string
   driveFileUrl?: string
   error?: string
+  extractedText?: string
+  extractedConfidence?: number
+  extractedTimeMs?: number
 }
 
 const newId = () =>
@@ -101,10 +108,15 @@ export function CreateBoothPage() {
   const { success: showSuccess, error: showError, info: showInfo } = useToast()
 
   const { event, isLoading: eventLoading } = useExhibitorEvent(eventId || '')
+  const { extractText, reset: resetExtraction, ...extractionState } = useTesseractExtraction()
 
   const [documents, setDocuments] = useState<DocumentEntry[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [boothId, setBoothId] = useState<string | null>(null)
+  const [extractionModalOpen, setExtractionModalOpen] = useState(false)
+  const [extractionCurrentDoc, setExtractionCurrentDoc] = useState<DocumentEntry | null>(null)
+  const [extractionResult, setExtractionResult] = useState<any>(null)
+  const [isConfirmingExtraction, setIsConfirmingExtraction] = useState(false)
 
   const {
     register,
@@ -134,39 +146,6 @@ export function CreateBoothPage() {
     }
   }, [previewUrls])
 
-  const onDrop = useCallback(
-    (accepted: File[], rejections: FileRejection[]) => {
-      if (rejections.length > 0) {
-        const reasons = rejections
-          .map((r) => `${r.file.name}: ${r.errors[0]?.message ?? 'rejected'}`)
-          .join('; ')
-        showError(`Some files were rejected — ${reasons}`)
-      }
-      if (accepted.length === 0) return
-      setDocuments((prev) => [
-        ...prev,
-        ...accepted.map<DocumentEntry>((file) => ({
-          id: newId(),
-          file,
-          type: 'brochure',
-          status: 'pending',
-          progress: 0,
-        })),
-      ])
-    },
-    [showError],
-  )
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': [],
-      'application/pdf': ['.pdf'],
-    },
-    maxSize: MAX_FILE_BYTES,
-    disabled: isSubmitting,
-  })
-
   const removeDocument = (id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id))
   }
@@ -181,6 +160,179 @@ export function CreateBoothPage() {
     setDocuments((prev) =>
       prev.map((d) => (d.id === id ? { ...d, ...patch } : d)),
     )
+  }
+
+  const handleExtractText = useCallback(async (doc: DocumentEntry, autoExtract = false) => {
+    console.log('[CreateBoothPage] Starting extraction:', { fileName: doc.file.name, autoExtract })
+
+    const isImage = doc.file.type.startsWith('image/')
+    const isPdf = doc.file.type === 'application/pdf'
+
+    if (!isImage && !isPdf) {
+      console.log('[CreateBoothPage] Unsupported format:', doc.file.type)
+      if (!autoExtract) {
+        showError('Text extraction only works for images and PDFs')
+      }
+      return
+    }
+
+    // Update status to extracting
+    console.log('[CreateBoothPage] Updating status to extracting')
+    updateDocument(doc.id, { status: 'extracting', progress: 0 })
+
+    // Only show modal if manually triggered
+    if (!autoExtract) {
+      console.log('[CreateBoothPage] Opening extraction modal')
+      setExtractionCurrentDoc(doc)
+      setExtractionResult(null)
+      setExtractionModalOpen(true)
+    }
+
+    resetExtraction()
+
+    try {
+      let filesToExtract: File[] = [doc.file]
+
+      // Handle PDF: extract pages as images
+      if (isPdf) {
+        console.log('[CreateBoothPage] Processing PDF...')
+        const pages = await extractPDFPages(doc.file, MAX_PDF_PAGES)
+        console.log('[CreateBoothPage] Extracted', pages.length, 'pages from PDF')
+
+        filesToExtract = await Promise.all(
+          pages.map((page) => canvasToFile(page.canvas, doc.file.name, page.pageNumber))
+        )
+      }
+
+      // Extract text from all files (image or PDF pages)
+      console.log('[CreateBoothPage] Extracting text from', filesToExtract.length, 'file(s)')
+      const allResults = await Promise.all(filesToExtract.map((file) => extractText(file)))
+
+      // Combine results
+      const combinedText = allResults
+        .filter((r) => r !== null)
+        .map((r) => r!.text)
+        .join('\n\n--- Page Break ---\n\n')
+
+      const avgConfidence =
+        allResults.filter((r) => r !== null).reduce((sum, r) => sum + r!.confidence, 0) /
+        allResults.filter((r) => r !== null).length
+
+      const totalTime = allResults.filter((r) => r !== null).reduce((sum, r) => sum + r!.processingTimeMs, 0)
+
+      if (combinedText) {
+        console.log('[CreateBoothPage] Extraction successful')
+        const result = {
+          text: combinedText,
+          confidence: avgConfidence,
+          processingTimeMs: totalTime,
+        }
+        setExtractionResult(result)
+        updateDocument(doc.id, {
+          status: 'pending',
+          extractedText: result.text,
+          extractedConfidence: result.confidence,
+          extractedTimeMs: result.processingTimeMs,
+        })
+
+        if (autoExtract) {
+          console.log('[CreateBoothPage] Auto-extraction complete')
+          showInfo(`Text extracted from ${doc.file.name}`)
+        } else {
+          console.log('[CreateBoothPage] Manual extraction complete')
+          setExtractionResult(result)
+        }
+      } else {
+        console.log('[CreateBoothPage] No text extracted')
+        updateDocument(doc.id, { status: 'pending' })
+        if (!autoExtract) {
+          showError('No text found in file')
+        }
+      }
+    } catch (err) {
+      console.error('[CreateBoothPage] Extraction error:', err)
+      updateDocument(doc.id, { status: 'pending' })
+      if (!autoExtract) {
+        const message = err instanceof Error ? err.message : 'Extraction failed'
+        showError(message)
+      }
+    }
+  }, [extractText, updateDocument, showError, showInfo, resetExtraction])
+
+  const onDrop = useCallback(
+    (accepted: File[], rejections: FileRejection[]) => {
+      console.log('[onDrop] Files dropped:', { acceptedCount: accepted.length, rejectionCount: rejections.length })
+
+      if (rejections.length > 0) {
+        const reasons = rejections
+          .map((r) => `${r.file.name}: ${r.errors[0]?.message ?? 'rejected'}`)
+          .join('; ')
+        showError(`Some files were rejected — ${reasons}`)
+      }
+      if (accepted.length === 0) {
+        console.log('[onDrop] No accepted files')
+        return
+      }
+
+      const newDocs = accepted.map<DocumentEntry>((file) => {
+        console.log('[onDrop] Creating document entry:', { name: file.name, type: file.type, size: file.size })
+        return {
+          id: newId(),
+          file,
+          type: 'brochure',
+          status: 'pending',
+          progress: 0,
+        }
+      })
+
+      setDocuments((prev) => [...prev, ...newDocs])
+
+      // Auto-extract text from images and PDFs
+      newDocs.forEach((doc) => {
+        const isImage = doc.file.type.startsWith('image/')
+        const isPdf = doc.file.type === 'application/pdf'
+        console.log('[onDrop] Checking file:', { name: doc.file.name, type: doc.file.type, isImage, isPdf })
+
+        if (isImage || isPdf) {
+          console.log('[onDrop] Scheduling extraction for:', doc.file.name)
+          setTimeout(() => {
+            console.log('[onDrop] Executing scheduled extraction for:', doc.file.name)
+            handleExtractText(doc, true)
+          }, 300)
+        } else {
+          console.log('[onDrop] Unsupported format, skipping extraction:', doc.file.name)
+        }
+      })
+    },
+    [showError, handleExtractText],
+  )
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'application/pdf': ['.pdf'],
+    },
+    maxSize: MAX_FILE_BYTES,
+    disabled: isSubmitting,
+  })
+
+  const handleConfirmExtraction = async (text: string) => {
+    if (!extractionCurrentDoc) return
+
+    setIsConfirmingExtraction(true)
+    try {
+      // Simulate upload delay, then close modal
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      updateDocument(extractionCurrentDoc.id, {
+        extractedText: text,
+      })
+      setExtractionModalOpen(false)
+      showInfo('Text extracted and ready for upload')
+    } finally {
+      setIsConfirmingExtraction(false)
+    }
   }
 
   const handleReconnectGoogle = (message: string) => {
@@ -256,7 +408,7 @@ export function CreateBoothPage() {
         }
       }
 
-      await exhibitorBoothsApi.createDocument(targetBoothId, {
+      const createdDoc = await exhibitorBoothsApi.createDocument(targetBoothId, {
         driveFileId: result.fileId,
         driveFileUrl: result.webViewLink,
         fileName: doc.file.name,
@@ -265,12 +417,28 @@ export function CreateBoothPage() {
         sizeBytes: doc.file.size,
         isPublic: true,
       })
+
       updateDocument(doc.id, {
         status: 'done',
         progress: 100,
         driveFileId: result.fileId,
         driveFileUrl: result.webViewLink,
       })
+
+      // Extract text if available
+      if (doc.extractedText) {
+        try {
+          console.log('[uploadOneDocument] Calling extract API for:', doc.file.name)
+          await exhibitorBoothsApi.extractDocument(targetBoothId, createdDoc.id, doc.extractedText)
+          console.log('[uploadOneDocument] Extraction successful for:', doc.file.name)
+          showSuccess(`Text extracted and saved for ${doc.file.name}`)
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Extraction failed'
+          console.error('[uploadOneDocument] Extraction error:', message)
+          showError(`Text extraction failed for ${doc.file.name}`)
+        }
+      }
+
       return true
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Upload failed'
@@ -343,45 +511,48 @@ export function CreateBoothPage() {
       showError('Please add at least one document')
       return
     }
-    if (!event?.name) {
-      showError('Event details not loaded yet — please wait')
-      return
-    }
 
     setIsSubmitting(true)
 
-    let targetBoothId = boothId
     try {
-      if (!targetBoothId) {
-        const created = await exhibitorBoothsApi.createBooth(eventId, {
-          boothName: values.boothName,
-          description: values.description,
-        })
-        targetBoothId = created.id
-        setBoothId(targetBoothId)
+      // Collect documents with extracted text
+      const docsWithText = documents
+        .filter((d) => d.extractedText) // Only include docs that have extracted text
+        .map((d) => ({
+          rawText: d.extractedText!,
+          fileType: d.type,
+          fileName: d.file.name,
+        }))
+
+      if (docsWithText.length === 0) {
+        showError('Please extract text from at least one document before submitting')
+        setIsSubmitting(false)
+        return
       }
+
+      console.log('[CreateBoothPage] Submitting booth with', docsWithText.length, 'documents')
+
+      // Single optimized API call
+      const result = await exhibitorBoothsApi.createBoothWithDocuments(eventId, {
+        boothName: values.boothName,
+        description: values.description,
+        documents: docsWithText,
+      })
+
+      console.log('[CreateBoothPage] Booth created:', result.booth.id)
+      console.log('[CreateBoothPage] Documents processed:', result.documents.length)
+      console.log('[CreateBoothPage] Sheet URL:', result.sheetUrl)
+
+      showSuccess(`Booth created with ${result.documents.length} document(s)`)
+
+      // Navigate to QR page
+      navigate(`/events/${eventId}/booths/${result.booth.id}/qr`)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not create booth'
-      showError(`Could not create booth — ${message}`)
+      const message = err instanceof Error ? err.message : 'Failed to create booth'
+      console.error('[CreateBoothPage] Submit error:', err)
+      showError(`Failed to create booth — ${message}`)
+    } finally {
       setIsSubmitting(false)
-      return
-    }
-
-    const docsToUpload = documents.filter((d) => d.status !== 'done')
-
-    const { ok, allSucceeded } = await runUploads(
-      targetBoothId,
-      event.name,
-      docsToUpload,
-    )
-    setIsSubmitting(false)
-    if (!ok) return
-
-    if (allSucceeded) {
-      showSuccess('Booth created')
-      navigate(`/events/${eventId}/booths/${targetBoothId}/qr`)
-    } else {
-      showInfo('Some uploads failed — retry the highlighted files')
     }
   }
 
@@ -495,7 +666,7 @@ export function CreateBoothPage() {
                         : 'Drag & drop or click to add files'}
                     </Text>
                     <Text fontSize="xs" color="gray.500" mt={1}>
-                      Images or PDF, up to 10 MB each
+                      JPG, PNG, or PDF (max 4 pages), up to 20 MB total
                     </Text>
                   </Box>
                   <FormHelperText>At least one file required.</FormHelperText>
@@ -512,9 +683,26 @@ export function CreateBoothPage() {
                         onRemove={() => removeDocument(doc.id)}
                         onTypeChange={(t) => setDocumentType(doc.id, t)}
                         onRetry={() => retryDocument(doc.id)}
+                        onExtractText={() => handleExtractText(doc)}
                       />
                     ))}
                   </Stack>
+                )}
+
+                {extractionModalOpen && extractionCurrentDoc && (
+                  <TextExtractionModal
+                    isOpen={extractionModalOpen}
+                    onClose={() => {
+                      setExtractionModalOpen(false)
+                      setExtractionCurrentDoc(null)
+                      setExtractionResult(null)
+                    }}
+                    onConfirm={handleConfirmExtraction}
+                    fileName={extractionCurrentDoc.file.name}
+                    result={extractionResult}
+                    state={extractionState}
+                    isConfirming={isConfirmingExtraction}
+                  />
                 )}
 
                 <HStack justify="flex-end" spacing={4}>
@@ -531,10 +719,10 @@ export function CreateBoothPage() {
                     color="white"
                     _hover={{ bg: 'brand.700' }}
                     isLoading={isSubmitting}
-                    loadingText={boothId ? 'Uploading…' : 'Creating…'}
+                    loadingText="Creating…"
                     isDisabled={documents.length === 0}
                   >
-                    {boothId ? 'Retry Failed Uploads' : 'Create Booth'}
+                    Create Booth
                   </Button>
                 </HStack>
               </Stack>
@@ -553,6 +741,7 @@ interface DocumentRowProps {
   onRemove: () => void
   onTypeChange: (type: ExhibitorDocumentFileType) => void
   onRetry: () => void
+  onExtractText: () => void
 }
 
 function DocumentRow({
@@ -562,10 +751,14 @@ function DocumentRow({
   onRemove,
   onTypeChange,
   onRetry,
+  onExtractText,
 }: DocumentRowProps) {
   const isImage = doc.file.type.startsWith('image/')
+  const isPdf = doc.file.type === 'application/pdf'
+  const isExtractable = isImage || isPdf
   const sizeKb = Math.round(doc.file.size / 1024)
-  const showProgress = doc.status === 'uploading'
+  const showProgress = doc.status === 'uploading' || doc.status === 'extracting'
+  const hasExtraction = !!doc.extractedText
 
   return (
     <Box
@@ -639,6 +832,28 @@ function DocumentRow({
               <option value="brochure">Brochure</option>
               <option value="card">Card</option>
             </Select>
+            {isExtractable && !hasExtraction && doc.status !== 'uploading' && doc.status !== 'extracting' && doc.status !== 'done' && (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={onExtractText}
+                isDisabled={disabled}
+              >
+                Extract Text
+              </Button>
+            )}
+            {hasExtraction && (
+              <HStack spacing={1}>
+                <Badge colorScheme="green" fontSize="xs" px={2}>
+                  Text Extracted
+                </Badge>
+                {doc.extractedConfidence !== undefined && (
+                  <Badge colorScheme="blue" fontSize="xs" px={2}>
+                    {Math.round(doc.extractedConfidence)}% confidence
+                  </Badge>
+                )}
+              </HStack>
+            )}
             {doc.status === 'error' && (
               <Button size="xs" variant="outline" onClick={onRetry} isDisabled={disabled}>
                 Retry

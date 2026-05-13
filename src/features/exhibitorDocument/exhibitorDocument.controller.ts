@@ -49,4 +49,14 @@ export class ExhibitorDocumentController {
     const result = await this.service.deleteDocument(userId, boothId, docId);
     res.status(200).json(ApiResponse.success(result, 'Exhibitor document deleted'));
   });
+
+  extractDocument = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { boothId, docId } = req.params as { boothId?: string; docId?: string };
+    const userId = req.user?.id;
+    if (!userId || !boothId || !docId) {
+      return res.status(401).json(ApiResponse.error('Unauthorized'));
+    }
+    const document = await this.service.extractAndSave(userId, boothId, docId, req.body);
+    res.status(200).json(ApiResponse.success({ document }, 'Document extraction successful'));
+  });
 }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ExhibitorDocumentController } from './exhibitorDocument.controller';
 import { authMiddleware } from '@/shared/middleware/auth.middleware';
 import { validate } from '@/shared/middleware/validate.middleware';
-import { createExhibitorDocumentSchema } from './exhibitorDocument.schema';
+import { createExhibitorDocumentSchema, extractDocumentSchema } from './exhibitorDocument.schema';
 
 const router = Router({ mergeParams: true });
 const controller = new ExhibitorDocumentController();
@@ -144,5 +144,62 @@ router.get('/booths/:boothId/documents', controller.listByBooth);
  *         description: Document or booth not found
  */
 router.delete('/booths/:boothId/documents/:docId', controller.deleteDocument);
+
+/**
+ * @swagger
+ * /api/v1/exhibitor/booths/{boothId}/documents/{docId}/extract:
+ *   post:
+ *     tags:
+ *       - Exhibitor Booths
+ *     summary: Extract and structure text from an exhibitor document
+ *     description: "Accepts raw OCR text, structures it with Anthropic API, saves to MongoDB, and syncs to Google Sheets."
+ *     parameters:
+ *       - in: path
+ *         name: boothId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "65b2c3d4e5f6a7b8c9d0e1a2"
+ *       - in: path
+ *         name: docId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "65c3d4e5f6a7b8c9d0e1a2b3"
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - rawText
+ *             properties:
+ *               rawText:
+ *                 type: string
+ *                 description: Raw OCR text extracted from the document
+ *           example:
+ *             rawText: "John Doe\nAcme Corp\nSoftware Engineer\n+91-9876-543210\njohn@acme.com\nwww.acme.com"
+ *     responses:
+ *       200:
+ *         description: Document extraction successful
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Document or booth not found
+ *       412:
+ *         description: Google account not connected
+ *       502:
+ *         description: Extraction failed
+ */
+router.post(
+  '/booths/:boothId/documents/:docId/extract',
+  validate(extractDocumentSchema),
+  controller.extractDocument
+);
 
 export default router;

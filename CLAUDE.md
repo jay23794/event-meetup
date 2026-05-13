@@ -54,8 +54,14 @@ src/features/{feature}/
 
 ### Current Features
 1. **auth** - Google OAuth2 sign-in (automatic user creation, JWT generation)
-2. **event** - Event CRUD with lazy Google Sheets creation (sheet created on first booth scan)
-3. **booth** - Booth entry logging with lazy sheet initialization
+2. **event** - Visitor event CRUD with lazy Google Sheets creation (sheet created on first booth scan)
+3. **booth** - Visitor booth entry logging
+4. **exhibitorEvent** - Exhibitor-specific event management (separate from visitor events)
+5. **exhibitorBooth** - Exhibitor booth data, linked to companies/networks
+6. **exhibitorDocument** - Document/attachment storage for exhibitor booths
+7. **scan** - OCR image scanning, contact extraction, voice note transcription
+8. **visitor** - Visitor workflow routes
+9. **drive** - Google Drive integration (file operations)
 
 ### Request Flow
 `routes` → `controller` → `service` → `repository` → `database`
@@ -182,23 +188,39 @@ One row per booth visit. Columns:
 
 ## API Endpoints
 
+All API routes are prefixed with `/api/v1`. Auth routes also available without prefix for backward compatibility.
+
 ### Auth
 - `GET /auth/google` - Initiate Google OAuth2 flow (redirects to Google consent screen)
 - `GET /auth/google/callback` - OAuth2 callback handler (creates user if new, returns JWT)
 - `POST /auth/logout` - Logout user (requires auth)
 
-Public UI: `GET /auth.html` - OAuth sign-in page + JWT display
+### Visitor Events & Booths (legacy)
+- `GET /events` - List user's visitor events (requires JWT)
+- `POST /events` - Create visitor event metadata (requires JWT)
+- `GET /events/:id` - Get visitor event (requires JWT)
+- `POST /events/:eventId/booths` - Create visitor booth entry (requires JWT, triggers sheet creation if first booth)
 
-### Events
-- `GET /api/v1/events` - List user's events (requires JWT)
-- `POST /api/v1/events` - Create event metadata (requires JWT, does NOT create sheet yet)
-- `GET /api/v1/events/:id` - Get single event (requires JWT)
-- Nested: `/api/v1/events/:eventId/booths` (see below)
+### Exhibitor Routes (require JWT)
+- `GET /exhibitor/events` - List user's exhibitor events
+- `POST /exhibitor/events` - Create exhibitor event
+- `GET /exhibitor/events/:id` - Get exhibitor event
+- `POST /exhibitor/booths` - Create exhibitor booth
+- `GET /exhibitor/booths/:id` - Get exhibitor booth details
+- `POST /exhibitor/documents` - Upload document for exhibitor booth
+- `GET /exhibitor/documents/:boothId` - List documents for booth
 
-### Booths
-- `POST /api/v1/events/:eventId/booths` - Create booth entry (requires JWT, triggers sheet creation if first booth)
+### Visitor Routes (require JWT)
+- `POST /visitor/...` - Visitor-related endpoints (check route definitions)
 
-Routes mounted in `src/app.ts` at `/api/v1/events`.
+### Public Exhibitor Routes (no auth required)
+- `GET /public/exhibitor-booths/:code` - Access exhibitor booth via public code
+
+### Scan Routes (require JWT)
+- `POST /scan` - OCR image scan, extract contacts, store voice notes
+
+### SPA Serving
+Routes mounted in `src/app.ts`. Static files served from `public/` directory. Non-API requests fall back to SPA `index.html` for client-side routing.
 
 ## Middleware Stack
 
@@ -238,6 +260,16 @@ Via Pino logger in `src/config/logger.ts`:
 - No unit tests currently; placeholder test script exists
 - Format code with `npm run format` before commits
 - TypeScript compiler runs in CI; ensure `npm run typecheck` passes
+
+## Key Architectural Patterns
+
+### Exhibitor vs Visitor Separation
+Distinct workflows prevent feature confusion:
+- **Visitor flow**: Attendees scan booths to collect contact info. Routes: `/api/v1/events`, `/api/v1/events/:id/booths`
+- **Exhibitor flow**: Booth operators create events, manage contacts, upload documents. Routes: `/api/v1/exhibitor/events`, `/api/v1/exhibitor/booths`, `/api/v1/exhibitor/documents`
+- **Public exhibitor access**: Limited unauthenticated access via `/public/exhibitor-booths/:code` for specific use cases
+
+Keep these separate: never merge exhibitor/visitor endpoints, as it risks exposing data across workflows.
 
 ## Common Patterns
 
@@ -286,15 +318,47 @@ if (!resource) throw ApiError.notFound('...');
 if (resource.ownerUserId.toString() !== userId) throw ApiError.forbidden('...');
 ```
 
-## Deployment Notes
+### Google API Client Pattern
+Isolate Google API operations in `src/shared/google/` clients:
+- **oauth.client.ts**: OAuth2Client creation and ID token verification
+- **sheets.client.ts**: Append/read Google Sheets
+- **drive.client.ts**: File operations in Google Drive
 
-- Build with `npm run build` (outputs to dist/)
-- Start with `npm start` or `node dist/server.js`
-- Ensure all env vars set in production
+Services call `createOAuthClient(user.googleRefreshToken)` to get an authenticated client, pass to the appropriate Google client, never expose refresh tokens or raw googleapis calls outside the service layer.
+
+## Deployment
+
+### Backend Build & Deployment
+- Build with `npm run build` (TypeScript compiled to dist/)
+- Start with `npm start` (or `npm run prod` for production mode)
+- Ensure all env vars set in production (see .env.production.example)
 - MongoDB connection must be secure (TLS)
 - JWT_SECRET must be strong random string (min 32 chars)
 - Google OAuth credentials scoped to needed APIs (drive.file, spreadsheets)
+- Backend serves static frontend from `public/` directory
+
+### Frontend Build & Deployment
+**Two deployment modes via Vite:**
+
+1. **Bundled with backend** (default):
+   - Build: `npm run build` in frontend dir
+   - Output: `../public/` (relative to frontend)
+   - Frontend files served by Node backend at `/`
+   - Backend starts with `npm start`, serves both API and frontend
+
+2. **Static site deployment** (separate CDN/static host):
+   - Build: `VITE_BUILD_TARGET=static npm run build` in frontend dir
+   - Output: `dist/` directory
+   - Deploy `dist/` contents to CDN or static host
+   - Set `VITE_API_URL` to point to backend API
+
+**Frontend npm install note:**
+- Frontend has peer dependency conflicts (vite@8 vs plugin-react peer versions)
+- Use `npm install --legacy-peer-deps` in frontend directory
+- Render deploys: ensure `--legacy-peer-deps` is set in build commands
 
 ## Known Issues & Workarounds
 
-- Google API types have version conflicts in dependencies (googleapis vs google-auth-library). Workaround: use `auth as any` when passing OAuth2Client to google.sheets/drive methods.
+- **Google API types conflict**: Version mismatch between googleapis and google-auth-library. Workaround: use `auth as any` when passing OAuth2Client to google.sheets/drive methods.
+- **Frontend npm install**: vite@8 has unmet peer dependencies with @vitejs/plugin-react. Workaround: use `npm install --legacy-peer-deps` in frontend directory.
+- **Vite build output**: Frontend can be built for two targets—embedded with backend (default) or as static site. Use `VITE_BUILD_TARGET=static` env var to change output directory. This is important for Render and other static-site deployments.

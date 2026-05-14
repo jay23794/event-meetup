@@ -83,7 +83,7 @@ export function EventDetailPage({ isExhibitor = true }: EventDetailPageProps) {
 
           <HStack spacing={8} w="full" wrap="wrap">
             <Box>
-              <Heading size="sm" color="brand.800">
+              <Heading size="sm" color="subheading">
                 {event.totalBooths}
               </Heading>
               <Text color="brand.600" fontSize="sm">
@@ -92,7 +92,7 @@ export function EventDetailPage({ isExhibitor = true }: EventDetailPageProps) {
             </Box>
             {event.lastBoothAt && (
               <Box>
-                <Heading size="sm" color="brand.800">
+                <Heading size="sm" color="subheading">
                   {formatRelativeTime(event.lastBoothAt)}
                 </Heading>
                 <Text color="brand.600" fontSize="sm">

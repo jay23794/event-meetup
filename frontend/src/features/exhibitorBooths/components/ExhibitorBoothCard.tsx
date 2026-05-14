@@ -14,7 +14,7 @@ export function ExhibitorBoothCard({ booth }: ExhibitorBoothCardProps) {
       <CardBody>
         <VStack align="start" spacing={3} h="full">
           <VStack align="start" spacing={1} w="full">
-            <Heading size="sm" color="brand.900" noOfLines={2}>
+            <Heading size="sm" color="subheading" noOfLines={2}>
               {booth.boothName}
             </Heading>
             <Text fontSize="xs" color="gray.500">

@@ -48,7 +48,7 @@ export function ScanCapture({ onCapture, isLoading }: ScanCaptureProps) {
         transition="all 0.2s"
       >
         <VStack spacing={2}>
-          <FiImage size={36} color="#0077b6" />
+          <FiImage size={36} color="#003F8F" />
           <Text color="brand.800" fontWeight="600">
             Add Business Card Image
           </Text>

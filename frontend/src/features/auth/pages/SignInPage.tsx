@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
-import { Button, Card, CardBody, Center, Heading, Text, VStack } from '@chakra-ui/react'
+import { Box, Button, Center, Heading, Image, Text, VStack } from '@chakra-ui/react'
 import { authStore } from '../store/authStore'
 import { useNavigate } from 'react-router-dom'
+import bannerSvg from '../../../assets/banner.svg'
+import googleIconSvg from '../../../assets/google-icon.svg'
 
 export function SignInPage() {
   const navigate = useNavigate()
@@ -54,32 +56,53 @@ export function SignInPage() {
   }
 
   return (
-    <Center minH="100vh" bg="brand.200">
-      <Card maxW="md" w="full" mx={4}>
-        <CardBody>
-          <VStack spacing={6}>
-            <VStack spacing={2} textAlign="center">
-              <Heading size="lg" color="brand.900">
-                Meet Sync
-              </Heading>
-              <Text color="brand.600" fontSize="sm">
-                Sign in to manage your event booth scans
-              </Text>
-            </VStack>
+    <VStack
+      minH="100vh"
+      w="full"
+      bg="brand.200"
+      justify="space-between"
+      align="center"
+      py={{ base: 12, md: 16 }}
+      px={6}
+      spacing={8}
+    >
+     
 
-            <Button
-              w="full"
-              bg="brand.800"
-              color="white"
-              _hover={{ bg: 'brand.700' }}
-              onClick={handleGoogleSignIn}
-              size="lg"
-            >
-              Continue with Google
-            </Button>
-          </VStack>
-        </CardBody>
-      </Card>
-    </Center>
+      <VStack flex={1} w="full" justify="center" spacing={6}>
+        <Image
+          src={bannerSvg}
+          alt="Meet Sync"
+          maxW={{ base: '280px', md: '360px' }}
+          w="full"
+          h="auto"
+        />
+        <VStack spacing={2} textAlign="center" px={4}>
+          <Heading size="lg" color="brand.800" letterSpacing="-0.5px">
+            Meet Sync
+          </Heading>
+          <Text color="brand.600" fontSize="sm">
+            Sign in to manage your event booth scans
+          </Text>
+        </VStack>
+      </VStack>
+
+      <Box w="full" maxW="sm">
+        <Button
+          w="full"
+          size="lg"
+          bg="#003F8F"
+          color="white"
+          borderWidth="1px"
+          borderColor="#003F8F"
+          _hover={{ bg: 'brand.700', borderColor: 'brand.700' }}
+          _active={{ bg: 'brand.700', borderColor: 'brand.700' }}
+          leftIcon={<Image src={googleIconSvg} alt="" w="20px" h="20px" />}
+          onClick={handleGoogleSignIn}
+          fontWeight={600}
+        >
+          Sign in with Google
+        </Button>
+      </Box>
+    </VStack>
   )
 }

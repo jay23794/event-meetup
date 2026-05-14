@@ -16,6 +16,22 @@ const createEventSchema = z.object({
   name: z.string().min(1, 'Event name is required'),
   startDate: z.string().optional().or(z.literal('')),
   endDate: z.string().optional().or(z.literal('')),
+  mobileNumber: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^\+?[0-9\s-]{7,15}$/.test(val),
+      'Enter a valid mobile number'
+    ),
+  eventUrl: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^https?:\/\/.+/.test(val),
+      'Enter a valid URL (https://...)'
+    ),
 })
 
 type CreateEventFormValues = z.infer<typeof createEventSchema>
@@ -44,6 +60,8 @@ export function CreateEventForm({
       name: data.name,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      mobileNumber: data.mobileNumber || undefined,
+      eventUrl: data.eventUrl || undefined,
     })
   }
 
@@ -58,19 +76,29 @@ export function CreateEventForm({
           )}
         </FormControl>
 
-        <FormControl isInvalid={!!errors.startDate}>
-          <FormLabel htmlFor="startDate">Start Date</FormLabel>
-          <Input id="startDate" type="date" {...register('startDate')} />
-          {errors.startDate && (
-            <FormErrorMessage>{errors.startDate.message}</FormErrorMessage>
+        <FormControl isInvalid={!!errors.mobileNumber}>
+          <FormLabel htmlFor="mobileNumber">Mobile Number</FormLabel>
+          <Input
+            id="mobileNumber"
+            type="tel"
+            placeholder="+91 98765 43210"
+            {...register('mobileNumber')}
+          />
+          {errors.mobileNumber && (
+            <FormErrorMessage>{errors.mobileNumber.message}</FormErrorMessage>
           )}
         </FormControl>
 
-        <FormControl isInvalid={!!errors.endDate}>
-          <FormLabel htmlFor="endDate">End Date</FormLabel>
-          <Input id="endDate" type="date" {...register('endDate')} />
-          {errors.endDate && (
-            <FormErrorMessage>{errors.endDate.message}</FormErrorMessage>
+        <FormControl isInvalid={!!errors.eventUrl}>
+          <FormLabel htmlFor="eventUrl">Event URL</FormLabel>
+          <Input
+            id="eventUrl"
+            type="url"
+            placeholder="https://example.com/event"
+            {...register('eventUrl')}
+          />
+          {errors.eventUrl && (
+            <FormErrorMessage>{errors.eventUrl.message}</FormErrorMessage>
           )}
         </FormControl>
 

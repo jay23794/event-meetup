@@ -20,7 +20,7 @@ export function Header() {
   const isHome = location.pathname === '/'
 
   return (
-    <VStack spacing={0} as="header" bg="brand.700" color="white" boxShadow="0 2px 12px rgba(0, 0, 0, 0.08)" borderBottom="1px solid rgba(255, 255, 255, 0.1)" w="full">
+    <VStack spacing={0} as="header" bg="brand.800" color="white" boxShadow="0 2px 12px rgba(0, 0, 0, 0.08)" borderBottom="1px solid rgba(255, 255, 255, 0.1)" w="full">
       <Flex w="full" px={8} py={4} align="center" justify="space-between">
         <HStack spacing={3}>
           {!isHome && (

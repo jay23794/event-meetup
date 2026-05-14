@@ -21,4 +21,6 @@ export interface CreateEventInput {
   name: string
   startDate?: string
   endDate?: string
+  mobileNumber?: string
+  eventUrl?: string
 }

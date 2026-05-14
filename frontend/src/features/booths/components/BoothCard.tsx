@@ -31,7 +31,7 @@ export function BoothCard({ booth, onClick }: BoothCardProps) {
       <CardBody>
         <VStack align="start" spacing={2} h="full">
           <HStack w="full" justify="space-between" align="start">
-            <Heading size="sm" color="brand.900" noOfLines={1}>
+            <Heading size="sm" color="subheading" noOfLines={1}>
               {booth.boothName || 'Unnamed Booth'}
             </Heading>
             <Badge colorScheme="blue" fontSize="xs">

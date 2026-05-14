@@ -601,14 +601,31 @@ export function CreateBoothPage() {
       <PageContainer>
         <Card maxW="2xl" mx="auto">
           <CardHeader>
-            <Heading size="md" color="brand.900">
-              New Booth
-            </Heading>
-            {event?.name && (
-              <Text fontSize="sm" color="gray.600" mt={1}>
-                {event.name}
-              </Text>
-            )}
+            <HStack align="start" justify="space-between" spacing={4} w="full">
+              <VStack align="start" spacing={1}>
+                <Heading size="md" color="brand.900">
+                  New Booth
+                </Heading>
+                <Text fontSize="sm" color="brand.600">
+                  Set up an exhibitor booth with a description and supporting
+                  documents for visitors to view.
+                </Text>
+                {event?.name && (
+                  <Text fontSize="sm" color="gray.600">
+                    {event.name}
+                  </Text>
+                )}
+              </VStack>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/events/${eventId}`)}
+                isDisabled={isSubmitting}
+                flexShrink={0}
+              >
+                Cancel
+              </Button>
+            </HStack>
           </CardHeader>
           <CardBody>
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -705,26 +722,19 @@ export function CreateBoothPage() {
                   />
                 )}
 
-                <HStack justify="flex-end" spacing={4}>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(`/events/${eventId}`)}
-                    isDisabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    bg="brand.800"
-                    color="white"
-                    _hover={{ bg: 'brand.700' }}
-                    isLoading={isSubmitting}
-                    loadingText="Creating…"
-                    isDisabled={documents.length === 0 || documents.some(d => d.status === 'extracting')}
-                  >
-                    Create Booth
-                  </Button>
-                </HStack>
+                <Button
+                  type="submit"
+                  w="full"
+                  size="lg"
+                  bg="brand.800"
+                  color="white"
+                  _hover={{ bg: 'brand.700' }}
+                  isLoading={isSubmitting}
+                  loadingText="Creating…"
+                  isDisabled={documents.length === 0 || documents.some(d => d.status === 'extracting')}
+                >
+                  Create Booth
+                </Button>
               </Stack>
             </form>
           </CardBody>
@@ -806,7 +816,7 @@ function DocumentRow({
               </Text>
             </Box>
             <HStack>
-              <StatusBadge status={doc.status} />
+              <StatusBadge status={doc.status} hasExtraction={hasExtraction} />
               <IconButton
                 aria-label="Remove file"
                 size="xs"
@@ -842,18 +852,6 @@ function DocumentRow({
                 Extract Text
               </Button>
             )}
-            {hasExtraction && (
-              <HStack spacing={1}>
-                <Badge colorScheme="green" fontSize="xs" px={2}>
-                  Text Extracted
-                </Badge>
-                {doc.extractedConfidence !== undefined && (
-                  <Badge colorScheme="blue" fontSize="xs" px={2}>
-                    {Math.round(doc.extractedConfidence)}% confidence
-                  </Badge>
-                )}
-              </HStack>
-            )}
             {doc.status === 'error' && (
               <Button size="xs" variant="outline" onClick={onRetry} isDisabled={disabled}>
                 Retry
@@ -881,10 +879,12 @@ function DocumentRow({
   )
 }
 
-function StatusBadge({ status }: { status: DocStatus }) {
+function StatusBadge({ status, hasExtraction }: { status: DocStatus; hasExtraction?: boolean }) {
   switch (status) {
     case 'pending':
-      return <Badge colorScheme="gray">Pending</Badge>
+      return hasExtraction
+        ? <Badge colorScheme="green">Extracted</Badge>
+        : <Badge colorScheme="gray">Pending</Badge>
     case 'extracting':
       return <Badge colorScheme="yellow">Extracting…</Badge>
     case 'uploading':

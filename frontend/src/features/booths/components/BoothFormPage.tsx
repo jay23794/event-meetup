@@ -11,6 +11,7 @@ import {
   FormLabel,
   VStack,
   HStack,
+  Text,
 } from '@chakra-ui/react'
 import { Layout } from '../../../shared/components/Layout'
 import { PageContainer } from '../../../shared/components/PageContainer'
@@ -81,9 +82,25 @@ export function BoothFormPage() {
       <PageContainer>
         <Card>
           <CardHeader>
-            <Heading size="md" color="brand.900">
-              New Booth
-            </Heading>
+            <HStack align="start" justify="space-between" spacing={4} w="full">
+              <VStack align="start" spacing={1}>
+                <Heading size="md" color="brand.900">
+                  New Booths
+                </Heading>
+                <Text color="brand.600" fontSize="sm">
+                  Log a booth visit by scanning business cards. We'll extract
+                  contacts and save them to your event sheet.
+                </Text>
+              </VStack>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/visitor')}
+                flexShrink={0}
+              >
+                Cancel
+              </Button>
+            </HStack>
           </CardHeader>
           <CardBody>
             <VStack spacing={6} align="start" w="full">
@@ -101,25 +118,19 @@ export function BoothFormPage() {
                 <ScanCarousel eventId={eventId || ''} onScansReady={handleScansReady} />
               </VStack>
 
-              <HStack spacing={4} w="full" justify="flex-end">
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/visitor')}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  bg="brand.800"
-                  color="white"
-                  _hover={{ bg: 'brand.700' }}
-                  onClick={handleSubmit}
-                  isLoading={isPending}
-                  isDisabled={completedScans.length < 1}
-                  title={completedScans.length < 1 ? 'Upload at least 1 card' : 'Submit booth'}
-                >
-                  Submit Booth ({completedScans.length}/{maxScans})
-                </Button>
-              </HStack>
+              <Button
+                w="full"
+                size="lg"
+                bg="brand.800"
+                color="white"
+                _hover={{ bg: 'brand.700' }}
+                onClick={handleSubmit}
+                isLoading={isPending}
+                isDisabled={completedScans.length < 1}
+                title={completedScans.length < 1 ? 'Upload at least 1 card' : 'Submit booth'}
+              >
+                Submit Booth ({completedScans.length}/{maxScans})
+              </Button>
             </VStack>
           </CardBody>
         </Card>

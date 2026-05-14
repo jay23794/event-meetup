@@ -35,6 +35,8 @@ export class EventRepository {
       sheetId: string;
       sheetUrl: string;
       sheetCreated: boolean;
+      docExtractSheetId: string;
+      docExtractSheetUrl: string;
       driveRootFolderId: string;
       driveEventFolderId: string;
       driveImagesFolderId: string;

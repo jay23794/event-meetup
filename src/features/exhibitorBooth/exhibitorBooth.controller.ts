@@ -119,6 +119,13 @@ export class ExhibitorBoothController {
   createBoothWithDocuments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { eventId } = req.params as { eventId?: string };
     const userId = req.user?.id;
+    console.log('[Controller] createBoothWithDocuments hit:', {
+      eventId,
+      userId,
+      bodyKeys: Object.keys(req.body || {}),
+      hasDocuments: Array.isArray(req.body?.documents),
+      documentsCount: req.body?.documents?.length ?? 0,
+    });
     if (!userId || !eventId) {
       return res.status(401).json(ApiResponse.error('Unauthorized'));
     }

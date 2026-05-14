@@ -8,6 +8,8 @@ export interface IEvent extends Document {
   sheetId?: string;
   sheetUrl?: string;
   sheetCreated: boolean;
+  docExtractSheetId?: string;
+  docExtractSheetUrl?: string;
   boothCount: number;
   driveRootFolderId?: string;
   driveEventFolderId?: string;
@@ -25,6 +27,8 @@ const eventSchema = new Schema<IEvent>(
     sheetId: String,
     sheetUrl: String,
     sheetCreated: { type: Boolean, default: false },
+    docExtractSheetId: String,
+    docExtractSheetUrl: String,
     boothCount: { type: Number, default: 0 },
     driveRootFolderId: String,
     driveEventFolderId: String,

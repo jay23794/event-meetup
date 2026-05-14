@@ -4,8 +4,8 @@ export interface IExhibitorDocument extends Document {
   ownerUserId: mongoose.Types.ObjectId;
   exhibitorBoothId: mongoose.Types.ObjectId;
   eventId: mongoose.Types.ObjectId;
-  driveFileId: string;
-  driveFileUrl: string;
+  driveFileId?: string;
+  driveFileUrl?: string;
   fileName: string;
   fileType: 'card' | 'brochure';
   mimeType?: string;
@@ -29,8 +29,8 @@ const exhibitorDocumentSchema = new Schema<IExhibitorDocument>(
     ownerUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     exhibitorBoothId: { type: Schema.Types.ObjectId, ref: 'ExhibitorBooth', required: true, index: true },
     eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true, index: true },
-    driveFileId: { type: String, required: true },
-    driveFileUrl: { type: String, required: true },
+    driveFileId: { type: String },
+    driveFileUrl: { type: String },
     fileName: { type: String, required: true },
     fileType: { type: String, enum: ['card', 'brochure'], required: true },
     mimeType: String,

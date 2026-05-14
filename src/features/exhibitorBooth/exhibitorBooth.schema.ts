@@ -10,6 +10,15 @@ export const updateExhibitorBoothSchema = createExhibitorBoothSchema.partial();
 export const createBoothWithDocumentsSchema = z.object({
   boothName: z.string().min(1, 'Booth name required').max(200),
   description: z.string().min(1, 'Description required').max(5000),
+  documents: z
+    .array(
+      z.object({
+        rawText: z.string().min(1, 'rawText required'),
+        fileType: z.enum(['card', 'brochure']),
+        fileName: z.string().min(1, 'fileName required'),
+      })
+    )
+    .min(1, 'At least one document is required'),
 });
 
 export type CreateExhibitorBoothInput = z.infer<typeof createExhibitorBoothSchema>;

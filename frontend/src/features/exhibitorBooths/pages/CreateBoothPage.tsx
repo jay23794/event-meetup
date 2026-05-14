@@ -720,7 +720,7 @@ export function CreateBoothPage() {
                     _hover={{ bg: 'brand.700' }}
                     isLoading={isSubmitting}
                     loadingText="Creating…"
-                    isDisabled={documents.length === 0}
+                    isDisabled={documents.length === 0 || documents.some(d => d.status === 'extracting')}
                   >
                     Create Booth
                   </Button>
@@ -826,7 +826,7 @@ function DocumentRow({
               onChange={(e) =>
                 onTypeChange(e.target.value as ExhibitorDocumentFileType)
               }
-              isDisabled={disabled || doc.status === 'uploading' || doc.status === 'done'}
+              isDisabled={disabled || doc.status === 'extracting' || doc.status === 'uploading' || doc.status === 'done'}
               maxW="160px"
             >
               <option value="brochure">Brochure</option>
@@ -885,6 +885,8 @@ function StatusBadge({ status }: { status: DocStatus }) {
   switch (status) {
     case 'pending':
       return <Badge colorScheme="gray">Pending</Badge>
+    case 'extracting':
+      return <Badge colorScheme="yellow">Extracting…</Badge>
     case 'uploading':
       return <Badge colorScheme="blue">Uploading</Badge>
     case 'done':

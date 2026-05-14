@@ -61,32 +61,101 @@ export class SheetsClient {
 
   async addHeaderRow(
     sheetId: string,
-    headers: string[]
+    headers: string[],
+    sheetName: string = 'Sheet1'
   ): Promise<void> {
-    await this.sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: 'Sheet1!A1',
-      valueInputOption: 'RAW',
-      requestBody: {
-        values: [headers],
-      },
-    });
+    console.log('[SheetsClient] Adding header row:', { spreadsheetId: sheetId, sheetName, columnCount: headers.length });
+    const range = `${sheetName}!A1`;
+    try {
+      const response = await this.sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [headers],
+        },
+      });
+      console.log('[SheetsClient] Header row added:', { range, updatedCells: response.data.updates?.updatedCells });
+    } catch (error) {
+      console.error('[SheetsClient] addHeaderRow failed:', { range, error: error instanceof Error ? error.message : error });
+      throw error;
+    }
   }
 
-  async appendRow(sheetId: string, values: unknown[]): Promise<{ updatedRows: number; updatedRange: string }> {
-    const response = await this.sheets.spreadsheets.values.append({
+  async appendRow(sheetId: string, values: unknown[], sheetName: string = 'Sheet1'): Promise<{ updatedRows: number; updatedRange: string }> {
+    const range = `${sheetName}!A:Z`;
+    console.log('[SheetsClient] Appending row:', { spreadsheetId: sheetId, range, valueCount: values.length });
+    try {
+      const response = await this.sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [values],
+        },
+      });
+
+      const updatedRows = response.data.updates?.updatedRows || 0;
+      const updatedRange = response.data.updates?.updatedRange || '';
+      console.log('[SheetsClient] Row appended:', { range, updatedRows, updatedRange });
+
+      return {
+        updatedRows,
+        updatedRange,
+      };
+    } catch (error) {
+      console.error('[SheetsClient] appendRow failed:', { range, error: error instanceof Error ? error.message : error });
+      throw error;
+    }
+  }
+
+  async deleteSheet(spreadsheetId: string, sheetIdToDelete: number): Promise<void> {
+    console.log('[SheetsClient] Deleting sheet:', { spreadsheetId, sheetIdToDelete });
+    try {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              deleteSheet: {
+                sheetId: sheetIdToDelete,
+              },
+            },
+          ],
+        },
+      });
+      console.log('[SheetsClient] Sheet deleted successfully:', { sheetIdToDelete });
+    } catch (error) {
+      console.error('[SheetsClient] deleteSheet failed:', { sheetIdToDelete, error: error instanceof Error ? error.message : error });
+      throw error;
+    }
+  }
+
+  async addSheet(sheetId: string, sheetTitle: string): Promise<string> {
+    console.log('[SheetsClient] Adding sheet:', { spreadsheetId: sheetId, title: sheetTitle });
+    const response = await this.sheets.spreadsheets.batchUpdate({
       spreadsheetId: sheetId,
-      range: 'Sheet1!A:J',
-      valueInputOption: 'RAW',
       requestBody: {
-        values: [values],
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: sheetTitle,
+              },
+            },
+          },
+        ],
       },
     });
 
-    return {
-      updatedRows: response.data.updates?.updatedRows || 0,
-      updatedRange: response.data.updates?.updatedRange || '',
-    };
+    const newSheet = response.data.replies?.[0]?.addSheet?.properties;
+    if (!newSheet) {
+      console.error('[SheetsClient] addSheet failed - no response');
+      throw new Error('Failed to add sheet');
+    }
+    const addedName = newSheet.title || sheetTitle;
+    console.log('[SheetsClient] Sheet added successfully:', { name: addedName, sheetId: newSheet.sheetId });
+    return addedName;
   }
 
   async readRange(sheetId: string, range: string): Promise<unknown[][]> {

@@ -172,7 +172,9 @@ export class ExhibitorBoothService {
       exhibitorBoothId: booth._id,
       isPublic: true,
     });
-    const sharedDocUrls = publicDocuments.map((d) => d.driveFileUrl).filter(Boolean);
+    const sharedDocUrls = publicDocuments
+      .map((d) => d.driveFileUrl)
+      .filter((url): url is string => !!url);
 
     // Share booth's public documents with visitor's email so they show up in their Drive "Shared with me"
     try {
@@ -494,6 +496,19 @@ export class ExhibitorBoothService {
     eventId: string,
     payload: CreateBoothWithDocumentsInput & { documents: Array<{ rawText: string; fileType: 'card' | 'brochure'; fileName: string }> }
   ) {
+    console.log('[CreateBoothWithDocuments] ENTRY:', {
+      userId,
+      eventId,
+      boothName: payload.boothName,
+      documentsCount: payload.documents?.length ?? 0,
+      hasDocumentsArray: Array.isArray(payload.documents),
+      firstDocPreview: payload.documents?.[0] ? {
+        fileName: payload.documents[0].fileName,
+        fileType: payload.documents[0].fileType,
+        rawTextLength: payload.documents[0].rawText?.length ?? 0,
+      } : null,
+    });
+
     const event = await this.eventRepository.findEventById(eventId);
     if (!event) {
       throw ApiError.notFound('Event not found');
@@ -526,12 +541,48 @@ export class ExhibitorBoothService {
       const oauth = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauth);
 
-      // Create extraction sheet
-      const sheetTitle = `${booth.boothName} - Document Extractions`;
-      const { sheetId, sheetUrl: newSheetUrl } = await sheetsClient.createSheet(sheetTitle);
-      sheetUrl = newSheetUrl;
+      // Ensure master extraction sheet exists for user (one master sheet per user, reused across all events and booths)
+      let masterSheetId = user.docExtractSheetId;
+      let isNewMasterSheet = false;
+      if (!masterSheetId) {
+        console.log('[CreateBoothWithDocuments] Creating master sheet for user:', user.email);
+        const { sheetId, sheetUrl: newSheetUrl } = await sheetsClient.createSheet(
+          `${user.name} - Document Extractions`
+        );
+        masterSheetId = sheetId;
+        sheetUrl = newSheetUrl;
+        isNewMasterSheet = true;
 
-      await sheetsClient.addHeaderRow(sheetId, [
+        // Save master sheet to user record
+        await this.authRepository.updateUser(userId, {
+          docExtractSheetId: sheetId,
+          docExtractSheetUrl: newSheetUrl,
+        });
+        console.log('[CreateBoothWithDocuments] Master sheet created and saved on user:', { masterSheetId });
+      } else {
+        sheetUrl = user.docExtractSheetUrl || '';
+        console.log('[CreateBoothWithDocuments] Reusing existing master sheet:', { masterSheetId });
+      }
+
+      // Add booth-specific tab to master sheet — prefix with event name to avoid collisions across events
+      const rawTabName = `${event.name} - ${booth.boothName}`;
+      const boothTabName = rawTabName.substring(0, 31); // Google Sheets tab name limit
+      console.log('[CreateBoothWithDocuments] Adding booth tab:', { boothName: booth.boothName, tabName: boothTabName });
+      await sheetsClient.addSheet(masterSheetId, boothTabName);
+      console.log('[CreateBoothWithDocuments] Booth tab added, now adding headers');
+
+      // If master sheet was just created, delete the default empty "Sheet1" tab (sheetId 0)
+      if (isNewMasterSheet) {
+        try {
+          await sheetsClient.deleteSheet(masterSheetId, 0);
+          console.log('[CreateBoothWithDocuments] Default Sheet1 deleted');
+        } catch (err) {
+          console.warn('[CreateBoothWithDocuments] Could not delete default Sheet1 (non-fatal):', err instanceof Error ? err.message : err);
+        }
+      }
+
+      // Add header row to booth tab
+      await sheetsClient.addHeaderRow(masterSheetId, [
         'Timestamp',
         'File Name',
         'File Type',
@@ -543,19 +594,16 @@ export class ExhibitorBoothService {
         'Website',
         'Address',
         'Raw Text',
-      ]);
-
-      await this.repository.updateDocExtractSheet(booth._id.toString(), {
-        docExtractSheetId: sheetId,
-        docExtractSheetUrl: newSheetUrl,
-        docExtractSheetCreated: true,
-      });
+      ], boothTabName);
+      console.log('[CreateBoothWithDocuments] Headers added to booth tab');
 
       // Process documents
       const processedDocs = [];
 
       for (const doc of payload.documents) {
         try {
+          console.log('[CreateBoothWithDocuments] Processing document:', { fileName: doc.fileName, fileType: doc.fileType });
+
           // Extract and structure text
           const response = await anthropic.messages.create({
             model: 'claude-haiku-4-5-20251001',
@@ -575,14 +623,13 @@ export class ExhibitorBoothService {
 
           let cleanText = textContent.text.replace(/```json|```/g, '').trim();
           const parsed = JSON.parse(cleanText);
+          console.log('[CreateBoothWithDocuments] Extraction succeeded:', { name: parsed.name, email: parsed.email });
 
-          // Create document in DB
+          // Create document in DB (no Drive upload in this flow)
           const createdDoc = await this.docRepository.create({
             ownerUserId: userId,
             exhibitorBoothId: booth._id.toString(),
             eventId,
-            driveFileId: '', // No file upload in this flow
-            driveFileUrl: '', // These would be filled if we uploaded to Drive
             fileName: doc.fileName,
             fileType: doc.fileType,
             extractedText: doc.rawText,
@@ -596,9 +643,11 @@ export class ExhibitorBoothService {
             extractionStatus: 'success',
             isPublic: false,
           });
+          console.log('[CreateBoothWithDocuments] Document created in DB:', { docId: createdDoc._id });
 
-          // Append to sheet
-          await sheetsClient.appendRow(sheetId, [
+          // Append to booth tab in master sheet
+          console.log('[CreateBoothWithDocuments] Appending to sheet:', { sheetId: masterSheetId, tabName: boothTabName, fileName: doc.fileName });
+          await sheetsClient.appendRow(masterSheetId, [
             new Date().toISOString(),
             doc.fileName,
             doc.fileType,
@@ -610,7 +659,8 @@ export class ExhibitorBoothService {
             parsed.website || '',
             parsed.address || '',
             doc.rawText.substring(0, 500),
-          ]);
+          ], boothTabName);
+          console.log('[CreateBoothWithDocuments] Row appended to sheet');
 
           processedDocs.push({
             id: createdDoc._id,
@@ -625,10 +675,16 @@ export class ExhibitorBoothService {
             extractedAddress: createdDoc.extractedAddress,
           });
         } catch (err) {
-          console.error('[CreateBoothWithDocuments] Document processing error:', err);
+          console.error('[CreateBoothWithDocuments] Document processing error:', {
+            fileName: doc.fileName,
+            errorMessage: err instanceof Error ? err.message : String(err),
+            errorStack: err instanceof Error ? err.stack : undefined,
+            errorName: err instanceof Error ? err.name : 'Unknown',
+          });
           // Continue processing other documents
         }
       }
+      console.log('[CreateBoothWithDocuments] Loop completed. Processed:', processedDocs.length, 'of', payload.documents.length);
 
       return {
         booth: {

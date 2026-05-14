@@ -6,8 +6,8 @@ export class ExhibitorDocumentRepository {
     ownerUserId: string;
     exhibitorBoothId: string;
     eventId: string;
-    driveFileId: string;
-    driveFileUrl: string;
+    driveFileId?: string;
+    driveFileUrl?: string;
     fileName: string;
     fileType: 'card' | 'brochure';
     mimeType?: string;

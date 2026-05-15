@@ -1,12 +1,23 @@
 import { EventRepository } from './event.repository';
+import { AuthRepository } from '@/features/auth/auth.repository';
 import { BoothRepository } from '@/features/booth/booth.repository';
 import { User } from '@/features/auth/auth.model';
+import { IEvent as IEventDoc } from './event.model';
 import { ApiError } from '@/shared/utils/ApiError';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { SheetsClient } from '@/shared/google/sheets.client';
 import { CacheService } from '@/shared/cache/cache.service';
 import { CreateEventInput, UpdateEventInput } from './event.schema';
 import { DriveService } from '@/features/drive/drive.service';
+
+const MAX_TAB_NAME_LENGTH = 31; // Google Sheets limit
+
+function buildTabName(eventName: string, eventId: string): string {
+  const idSuffix = eventId.slice(-6);
+  const suffix = ` (${idSuffix})`;
+  const namePart = eventName.slice(0, MAX_TAB_NAME_LENGTH - suffix.length).trim();
+  return `${namePart}${suffix}`;
+}
 
 const BOOTH_SHEET_HEADERS = [
   'Timestamp',
@@ -16,6 +27,9 @@ const BOOTH_SHEET_HEADERS = [
   'Phones (joined)',
   'Emails (joined)',
   'Companies (joined)',
+  'Websites (joined)',
+  'LinkedIn (joined)',
+  'Social Media (joined)',
   'Raw OCR JSON',
   'Voice Transcript',
   'Image URLs (joined)',
@@ -23,11 +37,13 @@ const BOOTH_SHEET_HEADERS = [
 
 export class EventService {
   private repository: EventRepository;
+  private authRepository: AuthRepository;
   private boothRepository: BoothRepository;
   private cacheService: CacheService;
 
   constructor() {
     this.repository = new EventRepository();
+    this.authRepository = new AuthRepository();
     this.boothRepository = new BoothRepository();
     this.cacheService = new CacheService();
   }
@@ -133,39 +149,83 @@ export class EventService {
     }
   }
 
-  async ensureSheetCreated(eventId: string, userId: string) {
+  async ensureSheetCreated(eventId: string, userId: string): Promise<{
+    event: IEventDoc;
+    masterSheetId: string;
+    masterSheetUrl: string;
+    tabName: string;
+  }> {
     const event = await this.getEvent(eventId, userId);
 
-    if (event.sheetCreated) {
-      console.log('[EventService] Sheet already created');
-      return event;
-    }
-
-    const user = await User.findById(userId).select('+googleRefreshToken');
+    const user = await User.findById(userId).select(
+      '+googleRefreshToken visitorBoothSheetId visitorBoothSheetUrl'
+    );
     if (!user?.googleRefreshToken) {
       throw new ApiError(412, 'Reconnect Google account with Drive permission');
     }
 
     try {
-      console.log('[EventService] Creating sheet:', `${event.name} - Booth Log`, 'in folder:', event.driveEventFolderId);
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
-      const { sheetId, sheetUrl } = await sheetsClient.createSheet(`${event.name} - Booth Log`, event.driveEventFolderId);
-      console.log('[EventService] Sheet created:', sheetId);
+      let masterSheetId = user.visitorBoothSheetId;
+      let masterSheetUrl = user.visitorBoothSheetUrl || '';
+      let isNewMasterSheet = false;
 
-      console.log('[EventService] Adding header row...');
-      await sheetsClient.addHeaderRow(sheetId, BOOTH_SHEET_HEADERS);
-      console.log('[EventService] Header row added');
+      if (!masterSheetId) {
+        console.log('[EventService] Creating visitor master sheet for user:', user.email);
+        const created = await sheetsClient.createSheet(`${user.name} - Visitor Booths`);
+        masterSheetId = created.sheetId;
+        masterSheetUrl = created.sheetUrl;
+        isNewMasterSheet = true;
+        await this.authRepository.updateUser(userId, {
+          visitorBoothSheetId: masterSheetId,
+          visitorBoothSheetUrl: masterSheetUrl,
+        });
+        console.log('[EventService] Visitor master sheet saved on user:', { masterSheetId });
+      } else {
+        console.log('[EventService] Reusing visitor master sheet:', { masterSheetId });
+      }
+
+      if (event.sheetCreated && event.sheetTabName) {
+        console.log('[EventService] Event tab already exists:', event.sheetTabName);
+        return {
+          event,
+          masterSheetId,
+          masterSheetUrl,
+          tabName: event.sheetTabName,
+        };
+      }
+
+      const tabName = buildTabName(event.name, event._id.toString());
+      console.log('[EventService] Adding event tab to master sheet:', tabName);
+      await sheetsClient.addSheet(masterSheetId, tabName);
+
+      if (isNewMasterSheet) {
+        try {
+          await sheetsClient.deleteSheet(masterSheetId, 0);
+        } catch (err) {
+          console.warn('[EventService] Could not delete default Sheet1 (non-fatal):', err instanceof Error ? err.message : err);
+        }
+      }
+
+      await sheetsClient.addHeaderRow(masterSheetId, BOOTH_SHEET_HEADERS, tabName);
+      console.log('[EventService] Header row added to tab:', tabName);
 
       const updatedEvent = await this.repository.updateEvent(eventId, {
-        sheetId,
-        sheetUrl,
+        sheetTabName: tabName,
         sheetCreated: true,
       });
+      if (!updatedEvent) {
+        throw ApiError.internal('Failed to persist sheet tab metadata');
+      }
 
-      console.log('[EventService] Sheet metadata updated in database');
-      return updatedEvent;
+      return {
+        event: updatedEvent,
+        masterSheetId,
+        masterSheetUrl,
+        tabName,
+      };
     } catch (error) {
       console.error('[EventService] Error in ensureSheetCreated:', error instanceof Error ? error.message : error, error instanceof Error ? error.stack : '');
       if (error instanceof ApiError) {
@@ -195,7 +255,7 @@ export class EventService {
   async getSummary(id: string, userId: string) {
     const event = await this.getEvent(id, userId);
 
-    if (!event.sheetCreated || !event.sheetId) {
+    if (!event.sheetCreated || !event.sheetTabName) {
       return {
         totalBooths: 0,
         totalScans: 0,
@@ -213,15 +273,31 @@ export class EventService {
     }
 
     try {
-      const user = await User.findById(userId).select('+googleRefreshToken');
+      const user = await User.findById(userId).select(
+        '+googleRefreshToken visitorBoothSheetId'
+      );
       if (!user?.googleRefreshToken) {
         throw new ApiError(412, 'Reconnect Google account with Drive permission');
+      }
+      if (!user.visitorBoothSheetId) {
+        return {
+          totalBooths: 0,
+          totalScans: 0,
+          uniqueCompanies: 0,
+          uniquePhones: 0,
+          boothsWithVoiceNote: 0,
+          lastBoothAt: null,
+        };
       }
 
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
-      const summary = await this.boothRepository.computeSummary(sheetsClient, event.sheetId as string);
+      const summary = await this.boothRepository.computeSummary(
+        sheetsClient,
+        user.visitorBoothSheetId,
+        event.sheetTabName
+      );
       this.cacheService.set(cacheKey, summary, 60);
 
       return summary;

@@ -5,6 +5,8 @@ export interface ExtractedFields {
   phone?: string | null
   email?: string | null
   website?: string | null
+  linkedin?: string | null
+  socialMedia?: string[]
   address?: string | null
 }
 
@@ -24,6 +26,9 @@ export interface Booth {
   phones: string[]
   emails: string[]
   companies: string[]
+  websites: string[]
+  linkedinUrls: string[]
+  socialMediaUrls: string[]
   rawOcr: ScanData[]
   voiceTranscript: string | null
   imageUrls: string[]

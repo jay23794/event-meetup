@@ -143,6 +143,55 @@ export function BoothDetailModal({ isOpen, onClose, booth }: BoothDetailModalPro
               </Box>
             )}
 
+            {(booth.websites?.length || booth.linkedinUrls?.length || booth.socialMediaUrls?.length) ? (
+              <>
+                <Divider />
+                <Box w="full">
+                  <Heading size="sm" mb={3}>
+                    Links
+                  </Heading>
+                  <VStack align="start" spacing={2} w="full">
+                    {booth.websites?.map((url, idx) => (
+                      <Link
+                        key={`web-${idx}`}
+                        href={url}
+                        isExternal
+                        fontSize="sm"
+                        color="brand.700"
+                        wordBreak="break-all"
+                      >
+                        🌐 {url}
+                      </Link>
+                    ))}
+                    {booth.linkedinUrls?.map((url, idx) => (
+                      <Link
+                        key={`li-${idx}`}
+                        href={url}
+                        isExternal
+                        fontSize="sm"
+                        color="brand.700"
+                        wordBreak="break-all"
+                      >
+                        in {url}
+                      </Link>
+                    ))}
+                    {booth.socialMediaUrls?.map((url, idx) => (
+                      <Link
+                        key={`sm-${idx}`}
+                        href={url}
+                        isExternal
+                        fontSize="sm"
+                        color="brand.700"
+                        wordBreak="break-all"
+                      >
+                        🔗 {url}
+                      </Link>
+                    ))}
+                  </VStack>
+                </Box>
+              </>
+            ) : null}
+
             {booth.voiceTranscript && (
               <>
                 <Divider />

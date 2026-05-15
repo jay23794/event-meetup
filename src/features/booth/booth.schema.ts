@@ -7,6 +7,8 @@ const extractedFieldsSchema = z.object({
   phone: z.string().optional().nullable(),
   email: z.string().optional().nullable(),
   website: z.string().optional().nullable(),
+  linkedin: z.string().optional().nullable(),
+  socialMedia: z.array(z.string()).optional().default([]),
   address: z.string().optional().nullable(),
 });
 

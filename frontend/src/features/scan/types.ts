@@ -12,6 +12,8 @@ export interface ExtractedFields {
   phone?: string
   email?: string
   website?: string
+  linkedin?: string
+  socialMedia?: string[]
   address?: string
 }
 

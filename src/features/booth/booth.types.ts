@@ -7,6 +7,9 @@ export type BoothRow = {
   phones: string[];
   emails: string[];
   companies: string[];
+  websites: string[];
+  linkedinUrls: string[];
+  socialMediaUrls: string[];
   rawOcr: Array<{
     ocrText: string;
     extractedFields: Record<string, any>;

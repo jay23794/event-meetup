@@ -15,8 +15,7 @@ export class EventRepository {
     name: string;
     startDate?: Date;
     endDate?: Date;
-    sheetId?: string;
-    sheetUrl?: string;
+    sheetTabName?: string;
     sheetCreated?: boolean;
   }): Promise<IEvent> {
     const event = new Event({
@@ -32,8 +31,7 @@ export class EventRepository {
       name: string;
       startDate: Date;
       endDate: Date;
-      sheetId: string;
-      sheetUrl: string;
+      sheetTabName: string;
       sheetCreated: boolean;
       docExtractSheetId: string;
       docExtractSheetUrl: string;

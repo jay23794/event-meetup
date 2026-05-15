@@ -11,6 +11,8 @@ export interface IUser extends Document {
   myBoothsFolderId?: string;
   visitedBoothsFolderId?: string;
   visitedBoothsSheetId?: string;
+  visitorBoothSheetId?: string;
+  visitorBoothSheetUrl?: string;
   docExtractSheetId?: string;
   docExtractSheetUrl?: string;
   hasCreatedBooth: boolean;
@@ -32,6 +34,8 @@ const userSchema = new Schema<IUser>(
     myBoothsFolderId: String,
     visitedBoothsFolderId: String,
     visitedBoothsSheetId: String,
+    visitorBoothSheetId: String,
+    visitorBoothSheetUrl: String,
     docExtractSheetId: String,
     docExtractSheetUrl: String,
     hasCreatedBooth: { type: Boolean, default: false, index: true },

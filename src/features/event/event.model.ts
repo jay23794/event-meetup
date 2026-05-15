@@ -5,8 +5,7 @@ export interface IEvent extends Document {
   name: string;
   startDate?: Date;
   endDate?: Date;
-  sheetId?: string;
-  sheetUrl?: string;
+  sheetTabName?: string;
   sheetCreated: boolean;
   docExtractSheetId?: string;
   docExtractSheetUrl?: string;
@@ -24,8 +23,7 @@ const eventSchema = new Schema<IEvent>(
     name: { type: String, required: true },
     startDate: Date,
     endDate: Date,
-    sheetId: String,
-    sheetUrl: String,
+    sheetTabName: String,
     sheetCreated: { type: Boolean, default: false },
     docExtractSheetId: String,
     docExtractSheetUrl: String,

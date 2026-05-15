@@ -33,7 +33,7 @@ import { PageContainer } from '../../../shared/components/PageContainer'
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner'
 import { ErrorMessage } from '../../../shared/components/ErrorMessage'
 import { useToast } from '../../../shared/hooks/useToast'
-import { useBooth } from '../hooks/useExhibitorBooths'
+import { useBooth, useBoothDocuments } from '../hooks/useExhibitorBooths'
 import { useExhibitorEvent } from '../hooks/useExhibitorEvents'
 import { authStore } from '../../auth/store/authStore'
 
@@ -69,6 +69,7 @@ export function BoothQRPage() {
 
   const { booth, isLoading: boothLoading, error: boothError } = useBooth(boothId || '')
   const { event } = useExhibitorEvent(eventId || '')
+  const { documents } = useBoothDocuments(boothId || '')
 
   const qrWrapperRef = useRef<HTMLDivElement>(null)
 
@@ -134,10 +135,22 @@ export function BoothQRPage() {
 
   const handlePrint = () => window.print()
 
-  // Contact details — wire these to real booth fields once added to the model.
-  const contactEmail = user?.email
-  const contactPhone: string | undefined = undefined
-  const contactWebsite: string | undefined = undefined
+  // Pull contact details from extracted document fields; fall back to login email only when no doc supplied one.
+  const firstNonEmpty = (key: 'extractedEmail' | 'extractedPhone' | 'extractedWebsite') => {
+    for (const doc of documents) {
+      const value = doc[key]?.trim()
+      if (value) return value
+    }
+    return undefined
+  }
+
+  const extractedEmail = firstNonEmpty('extractedEmail')
+  const extractedPhone = firstNonEmpty('extractedPhone')
+  const extractedWebsite = firstNonEmpty('extractedWebsite')
+
+  const contactEmail = extractedEmail || user?.email
+  const contactPhone = extractedPhone
+  const contactWebsite = extractedWebsite
   const socials: Array<{ icon: IconType; label: string; href: string }> = []
 
   return (

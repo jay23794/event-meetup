@@ -104,6 +104,10 @@ export class ScanService {
       let cleanText = textContent.text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleanText);
 
+      const socialMedia = Array.isArray(parsed.socialMedia)
+        ? parsed.socialMedia.filter((s: unknown): s is string => typeof s === 'string' && s.trim().length > 0)
+        : [];
+
       return {
         extractedFields: {
           name: parsed.name || null,
@@ -112,6 +116,8 @@ export class ScanService {
           phone: parsed.phone || null,
           email: parsed.email || null,
           website: parsed.website || null,
+          linkedin: parsed.linkedin || null,
+          socialMedia,
           address: parsed.address || null,
         },
         rawText: parsed.rawText || '',

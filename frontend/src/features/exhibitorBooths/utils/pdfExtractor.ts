@@ -11,21 +11,29 @@ export interface PDFPage {
   height: number
 }
 
+export interface PDFExtractionResult {
+  pages: PDFPage[]
+  totalPages: number
+  extractedPages: number
+  truncated: boolean
+}
+
 export async function extractPDFPages(
   file: File,
   maxPages: number = 4
-): Promise<PDFPage[]> {
+): Promise<PDFExtractionResult> {
   console.log('[PDFExtractor] Starting PDF extraction:', { fileName: file.name, maxPages })
 
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
 
-  const totalPages = Math.min(pdf.numPages, maxPages)
-  console.log('[PDFExtractor] PDF has', pdf.numPages, 'pages, extracting', totalPages)
+  const totalPages = pdf.numPages
+  const extractedPages = Math.min(totalPages, maxPages)
+  console.log('[PDFExtractor] PDF has', totalPages, 'pages, extracting', extractedPages)
 
   const pages: PDFPage[] = []
 
-  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+  for (let pageNumber = 1; pageNumber <= extractedPages; pageNumber++) {
     try {
       console.log('[PDFExtractor] Processing page', pageNumber)
       const page = await pdf.getPage(pageNumber)
@@ -59,7 +67,12 @@ export async function extractPDFPages(
     }
   }
 
-  return pages
+  return {
+    pages,
+    totalPages,
+    extractedPages,
+    truncated: totalPages > maxPages,
+  }
 }
 
 export function canvasToFile(canvas: HTMLCanvasElement, fileName: string, pageNumber: number): Promise<File> {

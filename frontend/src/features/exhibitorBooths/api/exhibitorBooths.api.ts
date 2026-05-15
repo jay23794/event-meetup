@@ -36,6 +36,14 @@ type ExhibitorBoothDocumentResponse = {
   mimeType?: string
   sizeBytes?: number
   isPublic: boolean
+  extractedName?: string
+  extractedCompany?: string
+  extractedTitle?: string
+  extractedPhone?: string
+  extractedEmail?: string
+  extractedWebsite?: string
+  extractedAddress?: string
+  extractionStatus?: 'pending' | 'success' | 'failed'
   createdAt: string
   updatedAt: string
 }

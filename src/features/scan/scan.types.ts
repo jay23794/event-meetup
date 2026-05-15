@@ -5,6 +5,8 @@ export type ExtractedFields = {
   phone: string | null;
   email: string | null;
   website: string | null;
+  linkedin: string | null;
+  socialMedia: string[];
   address: string | null;
 };
 

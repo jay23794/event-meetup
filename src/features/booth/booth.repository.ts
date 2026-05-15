@@ -14,6 +14,9 @@ export class BoothRepository {
     scanCount: number;
     hasVoiceNote: boolean;
     sheetRowNumber: number;
+    websites?: string[];
+    linkedinUrls?: string[];
+    socialMediaUrls?: string[];
   }): Promise<IBooth> {
     const booth = new Booth({
       ownerUserId: new mongoose.Types.ObjectId(boothData.ownerUserId),
@@ -25,6 +28,9 @@ export class BoothRepository {
       scanCount: boothData.scanCount,
       hasVoiceNote: boothData.hasVoiceNote,
       sheetRowNumber: boothData.sheetRowNumber,
+      websites: boothData.websites || [],
+      linkedinUrls: boothData.linkedinUrls || [],
+      socialMediaUrls: boothData.socialMediaUrls || [],
     });
     return booth.save();
   }
@@ -37,14 +43,34 @@ export class BoothRepository {
     return Booth.findById(new mongoose.Types.ObjectId(boothId));
   }
 
-  async readBoothRows(sheetsClient: SheetsClient, sheetId: string, startRow: number, limit: number): Promise<BoothRow[]> {
+  async readBoothRows(
+    sheetsClient: SheetsClient,
+    sheetId: string,
+    tabName: string,
+    startRow: number,
+    limit: number
+  ): Promise<BoothRow[]> {
     const endRow = startRow + limit;
-    const range = `Sheet1!A${startRow}:J${endRow}`;
+    const range = `'${tabName}'!A${startRow}:M${endRow}`;
     const rows = await sheetsClient.readRange(sheetId, range);
 
     return rows.map((row, index) => {
       const rowNumber = startRow + index;
-      const [timestamp = '', boothName = '', scanCountStr = '', namesStr = '', phonesStr = '', emailsStr = '', companiesStr = '', rawOcrStr = '', voiceTranscript = '', imageUrlsStr = ''] = row as string[];
+      const [
+        timestamp = '',
+        boothName = '',
+        scanCountStr = '',
+        namesStr = '',
+        phonesStr = '',
+        emailsStr = '',
+        companiesStr = '',
+        websitesStr = '',
+        linkedinStr = '',
+        socialMediaStr = '',
+        rawOcrStr = '',
+        voiceTranscript = '',
+        imageUrlsStr = '',
+      ] = row as string[];
 
       let rawOcr: Array<{ ocrText: string; extractedFields: Record<string, any> }> = [];
       try {
@@ -62,6 +88,9 @@ export class BoothRepository {
         phones: phonesStr ? phonesStr.split('; ').filter(Boolean) : [],
         emails: emailsStr ? emailsStr.split('; ').filter(Boolean) : [],
         companies: companiesStr ? companiesStr.split('; ').filter(Boolean) : [],
+        websites: websitesStr ? websitesStr.split('; ').filter(Boolean) : [],
+        linkedinUrls: linkedinStr ? linkedinStr.split('; ').filter(Boolean) : [],
+        socialMediaUrls: socialMediaStr ? socialMediaStr.split('; ').filter(Boolean) : [],
         rawOcr,
         voiceTranscript: voiceTranscript || null,
         imageUrls: imageUrlsStr ? imageUrlsStr.split('; ').filter(Boolean) : [],
@@ -69,8 +98,13 @@ export class BoothRepository {
     });
   }
 
-  async readBoothRow(sheetsClient: SheetsClient, sheetId: string, rowNumber: number): Promise<BoothRow | null> {
-    const range = `Sheet1!A${rowNumber}:J${rowNumber}`;
+  async readBoothRow(
+    sheetsClient: SheetsClient,
+    sheetId: string,
+    tabName: string,
+    rowNumber: number
+  ): Promise<BoothRow | null> {
+    const range = `'${tabName}'!A${rowNumber}:M${rowNumber}`;
     const rows = await sheetsClient.readRange(sheetId, range);
 
     if (!rows || rows.length === 0) {
@@ -78,7 +112,21 @@ export class BoothRepository {
     }
 
     const row = rows[0] as string[];
-    const [timestamp = '', boothName = '', scanCountStr = '', namesStr = '', phonesStr = '', emailsStr = '', companiesStr = '', rawOcrStr = '', voiceTranscript = '', imageUrlsStr = ''] = row;
+    const [
+      timestamp = '',
+      boothName = '',
+      scanCountStr = '',
+      namesStr = '',
+      phonesStr = '',
+      emailsStr = '',
+      companiesStr = '',
+      websitesStr = '',
+      linkedinStr = '',
+      socialMediaStr = '',
+      rawOcrStr = '',
+      voiceTranscript = '',
+      imageUrlsStr = '',
+    ] = row;
 
     let rawOcr: Array<{ ocrText: string; extractedFields: Record<string, any> }> = [];
     try {
@@ -96,13 +144,20 @@ export class BoothRepository {
       phones: phonesStr ? phonesStr.split('; ').filter(Boolean) : [],
       emails: emailsStr ? emailsStr.split('; ').filter(Boolean) : [],
       companies: companiesStr ? companiesStr.split('; ').filter(Boolean) : [],
+      websites: websitesStr ? websitesStr.split('; ').filter(Boolean) : [],
+      linkedinUrls: linkedinStr ? linkedinStr.split('; ').filter(Boolean) : [],
+      socialMediaUrls: socialMediaStr ? socialMediaStr.split('; ').filter(Boolean) : [],
       rawOcr,
       voiceTranscript: voiceTranscript || null,
       imageUrls: imageUrlsStr ? imageUrlsStr.split('; ').filter(Boolean) : [],
     };
   }
 
-  async computeSummary(sheetsClient: SheetsClient, sheetId: string): Promise<{
+  async computeSummary(
+    sheetsClient: SheetsClient,
+    sheetId: string,
+    tabName: string
+  ): Promise<{
     totalBooths: number;
     totalScans: number;
     uniqueCompanies: number;
@@ -110,7 +165,7 @@ export class BoothRepository {
     boothsWithVoiceNote: number;
     lastBoothAt: string | null;
   }> {
-    const booths = await this.readBoothRows(sheetsClient, sheetId, 2, 10000);
+    const booths = await this.readBoothRows(sheetsClient, sheetId, tabName, 2, 10000);
 
     const uniqueCompaniesSet = new Set<string>();
     const uniquePhonesSet = new Set<string>();

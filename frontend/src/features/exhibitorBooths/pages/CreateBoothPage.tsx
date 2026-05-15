@@ -76,6 +76,8 @@ interface DocumentEntry {
   extractedText?: string
   extractedConfidence?: number
   extractedTimeMs?: number
+  extractedPages?: number
+  totalPages?: number
 }
 
 const newId = () =>
@@ -192,12 +194,23 @@ export function CreateBoothPage() {
 
     try {
       let filesToExtract: File[] = [doc.file]
+      let pdfTotalPages: number | undefined
+      let pdfExtractedPages: number | undefined
 
       // Handle PDF: extract pages as images
       if (isPdf) {
         console.log('[CreateBoothPage] Processing PDF...')
-        const pages = await extractPDFPages(doc.file, MAX_PDF_PAGES)
-        console.log('[CreateBoothPage] Extracted', pages.length, 'pages from PDF')
+        const { pages, totalPages, extractedPages, truncated } = await extractPDFPages(doc.file, MAX_PDF_PAGES)
+        console.log('[CreateBoothPage] Extracted', pages.length, 'pages from PDF (total:', totalPages, ')')
+
+        pdfTotalPages = totalPages
+        pdfExtractedPages = extractedPages
+
+        if (truncated) {
+          showInfo(
+            `${doc.file.name} has ${totalPages} pages — only the first ${MAX_PDF_PAGES} will be extracted.`
+          )
+        }
 
         filesToExtract = await Promise.all(
           pages.map((page) => canvasToFile(page.canvas, doc.file.name, page.pageNumber))
@@ -233,6 +246,8 @@ export function CreateBoothPage() {
           extractedText: result.text,
           extractedConfidence: result.confidence,
           extractedTimeMs: result.processingTimeMs,
+          extractedPages: isPdf ? pdfExtractedPages : 1,
+          totalPages: isPdf ? pdfTotalPages : 1,
         })
 
         if (autoExtract) {
@@ -816,7 +831,12 @@ function DocumentRow({
               </Text>
             </Box>
             <HStack>
-              <StatusBadge status={doc.status} hasExtraction={hasExtraction} />
+              <StatusBadge
+                status={doc.status}
+                hasExtraction={hasExtraction}
+                extractedPages={doc.extractedPages}
+                totalPages={doc.totalPages}
+              />
               <IconButton
                 aria-label="Remove file"
                 size="xs"
@@ -879,18 +899,33 @@ function DocumentRow({
   )
 }
 
-function StatusBadge({ status, hasExtraction }: { status: DocStatus; hasExtraction?: boolean }) {
+function StatusBadge({
+  status,
+  hasExtraction,
+  extractedPages,
+  totalPages,
+}: {
+  status: DocStatus
+  hasExtraction?: boolean
+  extractedPages?: number
+  totalPages?: number
+}) {
+  const pagesLabel =
+    extractedPages !== undefined && totalPages !== undefined
+      ? ` ${extractedPages}/${totalPages}`
+      : ''
+
   switch (status) {
     case 'pending':
       return hasExtraction
-        ? <Badge colorScheme="green">Extracted</Badge>
+        ? <Badge colorScheme="green">Extracted{pagesLabel}</Badge>
         : <Badge colorScheme="gray">Pending</Badge>
     case 'extracting':
       return <Badge colorScheme="yellow">Extracting…</Badge>
     case 'uploading':
       return <Badge colorScheme="blue">Uploading</Badge>
     case 'done':
-      return <Badge colorScheme="green">Done</Badge>
+      return <Badge colorScheme="green">Done{pagesLabel}</Badge>
     case 'error':
       return <Badge colorScheme="red">Failed</Badge>
   }

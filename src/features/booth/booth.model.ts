@@ -10,6 +10,9 @@ export interface IBooth extends Document {
   scanCount: number;
   hasVoiceNote: boolean;
   sheetRowNumber: number;
+  websites: string[];
+  linkedinUrls: string[];
+  socialMediaUrls: string[];
   createdAt: Date;
 }
 
@@ -24,6 +27,9 @@ const boothSchema = new Schema<IBooth>(
     scanCount: { type: Number, default: 0 },
     hasVoiceNote: { type: Boolean, default: false },
     sheetRowNumber: { type: Number, required: true },
+    websites: { type: [String], default: [] },
+    linkedinUrls: { type: [String], default: [] },
+    socialMediaUrls: { type: [String], default: [] },
   },
   { timestamps: true }
 );

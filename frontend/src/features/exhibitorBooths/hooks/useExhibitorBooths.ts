@@ -47,6 +47,22 @@ export function useBooth(boothId: string) {
   }
 }
 
+export function useBoothDocuments(boothId: string) {
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ['exhibitor-booth-documents', boothId],
+    queryFn: () => exhibitorBoothsApi.listBoothDocuments(boothId),
+    enabled: !!boothId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+
+  return {
+    documents: data,
+    isLoading,
+    error,
+  }
+}
+
 export function useExhibitorBooths(eventId: string) {
   const { data = [], isLoading, error } = useQuery({
     queryKey: ['exhibitor-booths', eventId],

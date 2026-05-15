@@ -8,6 +8,7 @@ import {
   HStack,
   Image,
   Box,
+  Textarea,
 } from '@chakra-ui/react'
 import { ExtractedFields } from '../types'
 
@@ -19,6 +20,10 @@ interface ScanReviewProps {
   onRescan: () => void
 }
 
+type FormValues = Omit<ExtractedFields, 'socialMedia'> & {
+  socialMediaText?: string
+}
+
 export function ScanReview({
   imageUrl,
   extractedFields,
@@ -26,12 +31,24 @@ export function ScanReview({
   onDelete,
   onRescan,
 }: ScanReviewProps) {
-  const { register, handleSubmit, getValues } = useForm<ExtractedFields>({
-    defaultValues: extractedFields,
+  const { register, handleSubmit, getValues } = useForm<FormValues>({
+    defaultValues: {
+      ...extractedFields,
+      socialMediaText: (extractedFields.socialMedia || []).join('\n'),
+    },
   })
 
+  const submit = () => {
+    const { socialMediaText, ...rest } = getValues()
+    const socialMedia = (socialMediaText || '')
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    onConfirm({ ...rest, socialMedia })
+  }
+
   return (
-    <form onSubmit={handleSubmit(() => onConfirm(getValues()))}>
+    <form onSubmit={handleSubmit(submit)}>
       <VStack spacing={4} w="full">
         <Box borderRadius="md" overflow="hidden" bg="brand.300" p={2}>
           <Image
@@ -83,6 +100,31 @@ export function ScanReview({
               Website
             </FormLabel>
             <Input id="website" size="sm" {...register('website')} />
+          </FormControl>
+
+          <FormControl>
+            <FormLabel htmlFor="linkedin" fontSize="sm">
+              LinkedIn
+            </FormLabel>
+            <Input
+              id="linkedin"
+              size="sm"
+              placeholder="https://linkedin.com/in/..."
+              {...register('linkedin')}
+            />
+          </FormControl>
+
+          <FormControl>
+            <FormLabel htmlFor="socialMediaText" fontSize="sm">
+              Social Media URLs
+            </FormLabel>
+            <Textarea
+              id="socialMediaText"
+              size="sm"
+              rows={2}
+              placeholder="One URL per line (Twitter, Facebook, Instagram, etc.)"
+              {...register('socialMediaText')}
+            />
           </FormControl>
 
           <FormControl>

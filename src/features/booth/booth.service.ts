@@ -41,14 +41,8 @@ export class BoothService {
 
     try {
       console.log('[Booth] Ensuring sheet created...');
-      const eventWithSheet = await this.eventService.ensureSheetCreated(eventId, userId);
-      console.log('[Booth] Sheet ensured');
-      if (!eventWithSheet) {
-        throw ApiError.internal('Failed to ensure sheet creation');
-      }
-      if (!eventWithSheet.sheetId) {
-        throw ApiError.internal('Sheet ID not set after creation');
-      }
+      const { masterSheetId, tabName } = await this.eventService.ensureSheetCreated(eventId, userId);
+      console.log('[Booth] Sheet ensured:', { masterSheetId, tabName });
 
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
@@ -60,6 +54,9 @@ export class BoothService {
       const phones = data.scans?.map((s) => s.extractedFields.phone).filter(Boolean) || [];
       const emails = data.scans?.map((s) => s.extractedFields.email).filter(Boolean) || [];
       const companies = data.scans?.map((s) => s.extractedFields.company).filter(Boolean) || [];
+      const websites = (data.scans?.map((s) => s.extractedFields.website).filter(Boolean) as string[]) || [];
+      const linkedinUrls = (data.scans?.map((s) => s.extractedFields.linkedin).filter(Boolean) as string[]) || [];
+      const socialMediaUrls = (data.scans?.flatMap((s) => s.extractedFields.socialMedia || []).filter(Boolean) as string[]) || [];
       const imageUrls = data.scans?.map((s) => s.imageUrl).filter(Boolean) || [];
       const rawOcrJson = JSON.stringify(data.scans || []);
       const voiceTranscript = data.voiceNote?.transcript || '';
@@ -72,13 +69,16 @@ export class BoothService {
         phones.join('; '),
         emails.join('; '),
         companies.join('; '),
+        websites.join('; '),
+        linkedinUrls.join('; '),
+        socialMediaUrls.join('; '),
         rawOcrJson,
         voiceTranscript,
         imageUrls.join('; '),
       ];
 
-      console.log('[Booth] Appending row to sheet...');
-      const { updatedRange } = await sheetsClient.appendRow(eventWithSheet.sheetId, rowValues);
+      console.log('[Booth] Appending row to tab:', tabName);
+      const { updatedRange } = await sheetsClient.appendRow(masterSheetId, rowValues, tabName);
       const sheetRowNumber = this._extractRowNumber(updatedRange);
       console.log('[Booth] Row appended successfully');
 
@@ -95,6 +95,9 @@ export class BoothService {
         scanCount,
         hasVoiceNote: !!data.voiceNote,
         sheetRowNumber,
+        websites,
+        linkedinUrls,
+        socialMediaUrls,
       });
 
       await this.eventRepository.incrementBoothCount(eventId);
@@ -128,7 +131,7 @@ export class BoothService {
 
     const event = await this.eventService.getEvent(eventId, userId);
 
-    if (!event.sheetCreated || !event.sheetId) {
+    if (!event.sheetCreated || !event.sheetTabName) {
       return {
         booths: [],
         nextCursor: null,
@@ -143,16 +146,31 @@ export class BoothService {
     }
 
     try {
-      const user = await User.findById(userId).select('+googleRefreshToken');
+      const user = await User.findById(userId).select(
+        '+googleRefreshToken visitorBoothSheetId'
+      );
       if (!user?.googleRefreshToken) {
         throw new ApiError(412, 'Reconnect Google account with Drive permission');
+      }
+      if (!user.visitorBoothSheetId) {
+        return {
+          booths: [],
+          nextCursor: null,
+          total: 0,
+        };
       }
 
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
       const startRow = cursor || 2;
-      const booths = await this.repository.readBoothRows(sheetsClient, event.sheetId as string, startRow, limit);
+      const booths = await this.repository.readBoothRows(
+        sheetsClient,
+        user.visitorBoothSheetId,
+        event.sheetTabName,
+        startRow,
+        limit
+      );
 
       let nextCursor: number | null = null;
       if (booths.length > 0) {
@@ -182,7 +200,7 @@ export class BoothService {
   async getSingleBooth(eventId: string, userId: string, rowNumber: number) {
     const event = await this.eventService.getEvent(eventId, userId);
 
-    if (!event.sheetCreated || !event.sheetId) {
+    if (!event.sheetCreated || !event.sheetTabName) {
       throw ApiError.notFound('Booth not found');
     }
 
@@ -193,15 +211,25 @@ export class BoothService {
     }
 
     try {
-      const user = await User.findById(userId).select('+googleRefreshToken');
+      const user = await User.findById(userId).select(
+        '+googleRefreshToken visitorBoothSheetId'
+      );
       if (!user?.googleRefreshToken) {
         throw new ApiError(412, 'Reconnect Google account with Drive permission');
+      }
+      if (!user.visitorBoothSheetId) {
+        throw ApiError.notFound('Booth not found');
       }
 
       const oauthClient = createOAuthClient(user.googleRefreshToken);
       const sheetsClient = new SheetsClient(oauthClient);
 
-      const booth = await this.repository.readBoothRow(sheetsClient, event.sheetId as string, rowNumber);
+      const booth = await this.repository.readBoothRow(
+        sheetsClient,
+        user.visitorBoothSheetId,
+        event.sheetTabName,
+        rowNumber
+      );
       if (!booth) {
         throw ApiError.notFound('Booth not found');
       }

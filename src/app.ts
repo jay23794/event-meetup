@@ -107,12 +107,14 @@ app.use('/api/v1/exhibitor', exhibitorBoothRoutes);
 app.use('/api/v1/exhibitor', exhibitorDocumentRoutes);
 app.use('/api/v1/visitor', visitorRoutes);
 
-// Static legal pages — served from public/ as plain HTML so search engines and
-// OAuth verification crawlers see real content without executing JS. Must be
-// declared BEFORE the SPA catch-all.
+// Static legal pages — served from public/<slug>/index.html as plain HTML so
+// search engines and OAuth verification crawlers see real content without
+// executing JS. Must be declared BEFORE the SPA catch-all. The directory/
+// index.html layout also lets any static-site host (Render, Netlify, etc.)
+// match these before falling through to the SPA rewrite.
 app.get(['/privacy-policy', '/terms'], (req: Request, res: Response) => {
-  const fileName = req.path === '/terms' ? 'terms.html' : 'privacy-policy.html';
-  const filePath = path.join(__dirname, '../public', fileName);
+  const slug = req.path === '/terms' ? 'terms' : 'privacy-policy';
+  const filePath = path.join(__dirname, '../public', slug, 'index.html');
   if (existsSync(filePath)) {
     res.sendFile(filePath);
   } else {

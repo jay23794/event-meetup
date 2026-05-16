@@ -7,8 +7,8 @@ import path from 'path'
 // matching the Express server's behavior in production.
 function legalStaticPagesPlugin(): Plugin {
   const routes: Record<string, string> = {
-    '/privacy-policy': 'privacy-policy.html',
-    '/terms': 'terms.html',
+    '/privacy-policy': 'privacy-policy/index.html',
+    '/terms': 'terms/index.html',
   }
   return {
     name: 'legal-static-pages',

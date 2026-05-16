@@ -414,8 +414,11 @@ export class ExhibitorBoothService {
     await sheetsClient.appendRow(visitor.visitedBoothsSheetId, rowData);
   }
 
-  async listVisitorScannedBooths(userId: string): Promise<
-    Array<{
+  async listVisitorScannedBooths(
+    userId: string,
+    opts: { limit?: number; cursor?: number } = {}
+  ): Promise<{
+    booths: Array<{
       timestamp: string;
       boothName: string;
       eventName: string;
@@ -428,11 +431,18 @@ export class ExhibitorBoothService {
         fileType?: 'card' | 'brochure';
         thumbnailUrl?: string;
       }>;
-    }>
-  > {
+    }>;
+    nextCursor: number | null;
+    total: number;
+  }> {
+    const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
+    const cursor = Math.max(opts.cursor ?? 0, 0);
+
     const visitor = await this.authRepository.findUserByIdWithRefreshToken(userId);
-    if (!visitor) return [];
-    if (!visitor.visitedBoothsSheetId || !visitor.googleRefreshToken) return [];
+    if (!visitor) return { booths: [], nextCursor: null, total: 0 };
+    if (!visitor.visitedBoothsSheetId || !visitor.googleRefreshToken) {
+      return { booths: [], nextCursor: null, total: 0 };
+    }
 
     const auth = createOAuthClient(visitor.googleRefreshToken);
     const sheetsClient = new SheetsClient(auth);
@@ -460,14 +470,21 @@ export class ExhibitorBoothService {
         })
         .filter((entry) => entry.qrId);
 
-      // Enrich docs with metadata in one query
-      const allUrls = Array.from(new Set(parsed.flatMap((p) => p.urls)));
-      const docs = allUrls.length
-        ? await ExhibitorDocument.find({ driveFileUrl: { $in: allUrls } })
+      // Newest first — sheet append order is oldest→newest, so reverse + tie-break by timestamp.
+      parsed.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
+
+      const total = parsed.length;
+      const page = parsed.slice(cursor, cursor + limit);
+      const nextCursor = cursor + page.length < total ? cursor + page.length : null;
+
+      // Enrich docs only for the current page.
+      const pageUrls = Array.from(new Set(page.flatMap((p) => p.urls)));
+      const docs = pageUrls.length
+        ? await ExhibitorDocument.find({ driveFileUrl: { $in: pageUrls } })
         : [];
       const docByUrl = new Map(docs.map((d) => [d.driveFileUrl, d]));
 
-      return parsed.map((entry) => ({
+      const booths = page.map((entry) => ({
         timestamp: entry.timestamp,
         boothName: entry.boothName,
         eventName: entry.eventName,
@@ -485,9 +502,11 @@ export class ExhibitorBoothService {
           };
         }),
       }));
+
+      return { booths, nextCursor, total };
     } catch (error) {
       console.error('[ListVisitorScannedBooths] read failed:', error);
-      return [];
+      return { booths: [], nextCursor: null, total: 0 };
     }
   }
 

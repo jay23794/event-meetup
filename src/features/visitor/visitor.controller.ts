@@ -24,7 +24,12 @@ export class VisitorController {
     if (!userId) {
       return res.status(401).json(ApiResponse.error('Unauthorized'));
     }
-    const booths = await this.exhibitorBoothService.listVisitorScannedBooths(userId);
-    res.status(200).json(ApiResponse.success({ booths }, 'Visitor scanned booths listed'));
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : undefined;
+    const cursor = req.query.cursor ? parseInt(String(req.query.cursor), 10) : undefined;
+    const result = await this.exhibitorBoothService.listVisitorScannedBooths(userId, {
+      limit: Number.isFinite(limit) ? limit : undefined,
+      cursor: Number.isFinite(cursor) ? cursor : undefined,
+    });
+    res.status(200).json(ApiResponse.success(result, 'Visitor scanned booths listed'));
   });
 }

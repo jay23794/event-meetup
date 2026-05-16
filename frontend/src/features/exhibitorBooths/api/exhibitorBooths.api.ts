@@ -121,7 +121,16 @@ export const exhibitorBoothsApi = {
     input: {
       boothName: string
       description: string
-      documents: Array<{ rawText: string; fileType: 'card' | 'brochure'; fileName: string }>
+      documents: Array<{
+        rawText: string
+        fileType: 'card' | 'brochure'
+        fileName: string
+        driveFileId?: string
+        driveFileUrl?: string
+        mimeType?: string
+        sizeBytes?: number
+        isPublic?: boolean
+      }>
     }
   ): Promise<{
     booth: ExhibitorBooth

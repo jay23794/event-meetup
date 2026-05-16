@@ -16,6 +16,11 @@ export const createBoothWithDocumentsSchema = z.object({
         rawText: z.string().min(1, 'rawText required'),
         fileType: z.enum(['card', 'brochure']),
         fileName: z.string().min(1, 'fileName required'),
+        driveFileId: z.string().min(1).optional(),
+        driveFileUrl: z.string().url().optional(),
+        mimeType: z.string().optional(),
+        sizeBytes: z.number().positive().optional(),
+        isPublic: z.boolean().optional(),
       })
     )
     .min(1, 'At least one document is required'),

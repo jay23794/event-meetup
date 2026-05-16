@@ -527,31 +527,115 @@ export function CreateBoothPage() {
       return
     }
 
+    const docsWithText = documents.filter((d) => d.extractedText)
+    if (docsWithText.length === 0) {
+      showError('Please extract text from at least one document before submitting')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // Collect documents with extracted text
-      const docsWithText = documents
-        .filter((d) => d.extractedText) // Only include docs that have extracted text
-        .map((d) => ({
-          rawText: d.extractedText!,
-          fileType: d.type,
-          fileName: d.file.name,
-        }))
-
-      if (docsWithText.length === 0) {
-        showError('Please extract text from at least one document before submitting')
+      // Upload files to owner's Drive so they can be shared with visitors on QR scan
+      const eventName = event?.name || 'Booth'
+      const accessToken = await fetchFreshDriveToken()
+      if (!accessToken) {
         setIsSubmitting(false)
         return
       }
 
-      console.log('[CreateBoothPage] Submitting booth with', docsWithText.length, 'documents')
+      const driveRef = { current: new GoogleDriveClient(accessToken) }
+      const refreshDrive = async (): Promise<GoogleDriveClient | null> => {
+        const fresh = await fetchFreshDriveToken()
+        if (!fresh) return null
+        const next = new GoogleDriveClient(fresh)
+        driveRef.current = next
+        return next
+      }
 
-      // Single optimized API call
+      let eventFolderId: string
+      try {
+        eventFolderId = await buildEventFolder(driveRef.current, eventName)
+      } catch (err) {
+        if (err instanceof GoogleDriveError && err.status === 401) {
+          const fresh = await refreshDrive()
+          if (!fresh) {
+            setIsSubmitting(false)
+            return
+          }
+          eventFolderId = await buildEventFolder(fresh, eventName)
+        } else {
+          throw err
+        }
+      }
+
+      const uploadedDocs: Array<{
+        rawText: string
+        fileType: 'card' | 'brochure'
+        fileName: string
+        driveFileId: string
+        driveFileUrl: string
+        mimeType?: string
+        sizeBytes?: number
+        isPublic: boolean
+      }> = []
+
+      for (const doc of docsWithText) {
+        updateDocument(doc.id, { status: 'uploading', progress: 0, error: undefined })
+
+        const doUpload = async (drive: GoogleDriveClient) => {
+          const { fileId, webViewLink } = await drive.uploadFile(
+            doc.file,
+            eventFolderId,
+            (pct) => updateDocument(doc.id, { progress: Math.round(pct) }),
+          )
+          await drive.setPublicPermission(fileId)
+          return { fileId, webViewLink }
+        }
+
+        let result: { fileId: string; webViewLink: string }
+        try {
+          result = await doUpload(driveRef.current)
+        } catch (err) {
+          if (err instanceof GoogleDriveError && err.status === 401) {
+            const fresh = await refreshDrive()
+            if (!fresh) {
+              updateDocument(doc.id, { status: 'error', error: 'Session expired' })
+              throw err
+            }
+            result = await doUpload(fresh)
+          } else {
+            const message = err instanceof Error ? err.message : 'Upload failed'
+            updateDocument(doc.id, { status: 'error', error: message })
+            throw err
+          }
+        }
+
+        updateDocument(doc.id, {
+          status: 'done',
+          progress: 100,
+          driveFileId: result.fileId,
+          driveFileUrl: result.webViewLink,
+        })
+
+        uploadedDocs.push({
+          rawText: doc.extractedText!,
+          fileType: doc.type,
+          fileName: doc.file.name,
+          driveFileId: result.fileId,
+          driveFileUrl: result.webViewLink,
+          mimeType: doc.file.type || undefined,
+          sizeBytes: doc.file.size,
+          isPublic: true,
+        })
+      }
+
+      console.log('[CreateBoothPage] Submitting booth with', uploadedDocs.length, 'documents')
+
       const result = await exhibitorBoothsApi.createBoothWithDocuments(eventId, {
         boothName: values.boothName,
         description: values.description,
-        documents: docsWithText,
+        documents: uploadedDocs,
       })
 
       console.log('[CreateBoothPage] Booth created:', result.booth.id)
@@ -560,7 +644,6 @@ export function CreateBoothPage() {
 
       showSuccess(`Booth created with ${result.documents.length} document(s)`)
 
-      // Navigate to QR page
       navigate(`/events/${eventId}/booths/${result.booth.id}/qr`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create booth'

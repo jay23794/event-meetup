@@ -513,7 +513,18 @@ export class ExhibitorBoothService {
   async createBoothWithDocuments(
     userId: string,
     eventId: string,
-    payload: CreateBoothWithDocumentsInput & { documents: Array<{ rawText: string; fileType: 'card' | 'brochure'; fileName: string }> }
+    payload: CreateBoothWithDocumentsInput & {
+      documents: Array<{
+        rawText: string;
+        fileType: 'card' | 'brochure';
+        fileName: string;
+        driveFileId?: string;
+        driveFileUrl?: string;
+        mimeType?: string;
+        sizeBytes?: number;
+        isPublic?: boolean;
+      }>;
+    }
   ) {
     console.log('[CreateBoothWithDocuments] ENTRY:', {
       userId,
@@ -644,13 +655,17 @@ export class ExhibitorBoothService {
           const parsed = JSON.parse(cleanText);
           console.log('[CreateBoothWithDocuments] Extraction succeeded:', { name: parsed.name, email: parsed.email });
 
-          // Create document in DB (no Drive upload in this flow)
+          // Create document in DB (Drive file already uploaded by client)
           const createdDoc = await this.docRepository.create({
             ownerUserId: userId,
             exhibitorBoothId: booth._id.toString(),
             eventId,
+            driveFileId: doc.driveFileId,
+            driveFileUrl: doc.driveFileUrl,
             fileName: doc.fileName,
             fileType: doc.fileType,
+            mimeType: doc.mimeType,
+            sizeBytes: doc.sizeBytes,
             extractedText: doc.rawText,
             extractedName: parsed.name || undefined,
             extractedCompany: parsed.company || undefined,
@@ -660,7 +675,7 @@ export class ExhibitorBoothService {
             extractedWebsite: parsed.website || undefined,
             extractedAddress: parsed.address || undefined,
             extractionStatus: 'success',
-            isPublic: false,
+            isPublic: doc.isPublic ?? true,
           });
           console.log('[CreateBoothWithDocuments] Document created in DB:', { docId: createdDoc._id });
 

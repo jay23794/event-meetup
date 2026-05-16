@@ -1,5 +1,4 @@
 import { HStack, Link, Text } from '@chakra-ui/react'
-import { Link as RouterLink } from 'react-router-dom'
 
 export function LegalFooter() {
   return (
@@ -12,13 +11,13 @@ export function LegalFooter() {
       fontSize="sm"
       w="full"
     >
-      <Link as={RouterLink} to="/privacy-policy" textDecoration="underline">
+      <Link href="/privacy-policy" textDecoration="underline">
         Privacy Policy
       </Link>
       <Text color="gray.400" aria-hidden="true">
         ·
       </Text>
-      <Link as={RouterLink} to="/terms" textDecoration="underline">
+      <Link href="/terms" textDecoration="underline">
         Terms of Service
       </Link>
     </HStack>

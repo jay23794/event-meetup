@@ -107,6 +107,19 @@ app.use('/api/v1/exhibitor', exhibitorBoothRoutes);
 app.use('/api/v1/exhibitor', exhibitorDocumentRoutes);
 app.use('/api/v1/visitor', visitorRoutes);
 
+// Static legal pages — served from public/ as plain HTML so search engines and
+// OAuth verification crawlers see real content without executing JS. Must be
+// declared BEFORE the SPA catch-all.
+app.get(['/privacy-policy', '/terms'], (req: Request, res: Response) => {
+  const fileName = req.path === '/terms' ? 'terms.html' : 'privacy-policy.html';
+  const filePath = path.join(__dirname, '../public', fileName);
+  if (existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json(ApiResponse.error('Page not found'));
+  }
+});
+
 // SPA fallback: serve index.html for any non-API routes
 app.get('*', (_req: Request, res: Response) => {
   const indexPath = path.join(__dirname, '../public/index.html');

@@ -20,11 +20,27 @@ export interface ScannedBoothEntry {
 
 interface ListResponse {
   booths: ScannedBoothEntry[]
+  nextCursor: number | null
+  total: number
+}
+
+export interface ScannedBoothsPage {
+  booths: ScannedBoothEntry[]
+  nextCursor: number | null
+  total: number
 }
 
 export const visitorApi = {
-  listScannedBooths: async (): Promise<ScannedBoothEntry[]> => {
-    const response = await axios.get<ApiResponse<ListResponse>>('/visitor/scanned-booths')
-    return response.data.data.booths
+  listScannedBooths: async (
+    params: { limit?: number; cursor?: number } = {}
+  ): Promise<ScannedBoothsPage> => {
+    const search = new URLSearchParams()
+    if (params.limit !== undefined) search.set('limit', String(params.limit))
+    if (params.cursor !== undefined) search.set('cursor', String(params.cursor))
+    const qs = search.toString()
+    const response = await axios.get<ApiResponse<ListResponse>>(
+      `/visitor/scanned-booths${qs ? `?${qs}` : ''}`
+    )
+    return response.data.data
   },
 }

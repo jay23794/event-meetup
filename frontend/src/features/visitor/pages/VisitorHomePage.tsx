@@ -55,7 +55,30 @@ export function VisitorHomePage() {
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents()
   const { info } = useToast()
   const eventsRef = useRef<HTMLDivElement>(null)
-  const { scannedBooths: serverBooths, isLoading: serverLoading, error: serverError } = useScannedBooths()
+  const {
+    scannedBooths: serverBooths,
+    isLoading: serverLoading,
+    error: serverError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useScannedBooths()
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const node = loadMoreRef.current
+    if (!node || !hasNextPage) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
   const [localBooths, setLocalBooths] = useState<ScannedBooth[]>([])
 
   useEffect(() => {
@@ -407,6 +430,18 @@ export function VisitorHomePage() {
                     )
                   })}
                 </SimpleGrid>
+
+                {hasNextPage && (
+                  <Box ref={loadMoreRef} py={4} display="flex" justifyContent="center">
+                    {isFetchingNextPage ? (
+                      <LoadingSpinner />
+                    ) : (
+                      <Text fontSize="xs" color="gray.400">
+                        Scroll for more
+                      </Text>
+                    )}
+                  </Box>
+                )}
               </VStack>
             </>
           )}

@@ -679,6 +679,8 @@ export class ExhibitorBoothService {
           });
           console.log('[CreateBoothWithDocuments] Document created in DB:', { docId: createdDoc._id });
 
+          await this.repository.incrementDocumentCount(booth._id.toString());
+
           // Append to booth tab in master sheet
           console.log('[CreateBoothWithDocuments] Appending to sheet:', { sheetId: masterSheetId, tabName: boothTabName, fileName: doc.fileName });
           await sheetsClient.appendRow(masterSheetId, [

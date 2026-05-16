@@ -10,6 +10,8 @@ import { EventDetailPage } from '../features/events/pages/EventDetailPage'
 import { BoothFormPage } from '../features/booths/components/BoothFormPage'
 import { CreateBoothPage } from '../features/exhibitorBooths/pages/CreateBoothPage'
 import { BoothQRPage } from '../features/exhibitorBooths/pages/BoothQRPage'
+import { PrivacyPolicyPage } from '../features/legal/pages/PrivacyPolicyPage'
+import { TermsPage } from '../features/legal/pages/TermsPage'
 
 export const routes: RouteObject[] = [
   {
@@ -23,6 +25,14 @@ export const routes: RouteObject[] = [
   {
     path: '/signin',
     element: <SignInPage />,
+  },
+  {
+    path: '/privacy-policy',
+    element: <PrivacyPolicyPage />,
+  },
+  {
+    path: '/terms',
+    element: <TermsPage />,
   },
   // Exhibitor routes
   {

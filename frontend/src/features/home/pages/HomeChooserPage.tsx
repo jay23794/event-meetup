@@ -11,6 +11,7 @@ import {
 import { FiUsers, FiCamera } from 'react-icons/fi'
 import { Layout } from '../../../shared/components/Layout'
 import { PageContainer } from '../../../shared/components/PageContainer'
+import { LegalFooter } from '../../../shared/components/LegalFooter'
 
 interface ChooserCardProps {
   title: string
@@ -79,6 +80,8 @@ export function HomeChooserPage() {
               onClick={() => navigate('/visitor')}
             />
           </SimpleGrid>
+
+          <LegalFooter />
         </VStack>
       </PageContainer>
     </Layout>

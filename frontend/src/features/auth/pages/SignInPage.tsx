@@ -4,6 +4,7 @@ import { authStore } from '../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import bannerSvg from '../../../assets/banner.svg'
 import googleIconSvg from '../../../assets/google-icon.svg'
+import { LegalFooter } from '../../../shared/components/LegalFooter'
 
 export function SignInPage() {
   const navigate = useNavigate()
@@ -103,6 +104,8 @@ export function SignInPage() {
           Sign in with Google
         </Button>
       </Box>
+
+      <LegalFooter />
     </VStack>
   )
 }

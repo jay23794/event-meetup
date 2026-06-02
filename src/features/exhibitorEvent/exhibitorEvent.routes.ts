@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { EventController } from '../event/event.controller';
+import { ExhibitorBoothController } from '../exhibitorBooth/exhibitorBooth.controller';
 import { authMiddleware } from '@/shared/middleware/auth.middleware';
 import { validate } from '@/shared/middleware/validate.middleware';
 import { createEventSchema } from '../event/event.schema';
+import { createEventWithBoothAndDocumentsSchema } from '../exhibitorBooth/exhibitorBooth.schema';
 
 const router = Router();
 const controller = new EventController();
+const boothController = new ExhibitorBoothController();
 
 router.use(authMiddleware);
 
@@ -61,6 +64,78 @@ router.get('/', controller.listEvents);
  *         description: Validation error
  */
 router.post('/', validate(createEventSchema), controller.createEvent);
+
+/**
+ * @swagger
+ * /api/v1/exhibitor/events/create-with-booth-and-documents:
+ *   post:
+ *     tags:
+ *       - Exhibitor Events
+ *     summary: Create event + booth + documents in a single call
+ *     description: "Combines event creation (with Drive folder setup) and booth creation with extracted documents (Anthropic structuring + Mongo persistence) into one atomic-ish call."
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - eventName
+ *               - boothName
+ *               - description
+ *               - documents
+ *             properties:
+ *               eventName:
+ *                 type: string
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *               endDate:
+ *                 type: string
+ *                 format: date-time
+ *               boothName:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               documents:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     rawText:
+ *                       type: string
+ *                     fileType:
+ *                       type: string
+ *                       enum: [card, brochure]
+ *                     fileName:
+ *                       type: string
+ *                     driveFileId:
+ *                       type: string
+ *                     driveFileUrl:
+ *                       type: string
+ *                     mimeType:
+ *                       type: string
+ *                     sizeBytes:
+ *                       type: number
+ *                     isPublic:
+ *                       type: boolean
+ *     responses:
+ *       201:
+ *         description: Event, booth and documents created
+ *       400:
+ *         description: Validation error
+ *       412:
+ *         description: Google account not connected
+ *       502:
+ *         description: Extraction failed
+ */
+router.post(
+  '/create-with-booth-and-documents',
+  validate(createEventWithBoothAndDocumentsSchema),
+  boothController.createEventWithBoothAndDocuments
+);
 
 /**
  * @swagger

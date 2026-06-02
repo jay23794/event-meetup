@@ -28,6 +28,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'exhibitor/qr',
+        loadComponent: () =>
+          import('./features/qr/qr.component').then((m) => m.QrComponent),
+      },
+      {
         path: 'visitor',
         loadComponent: () =>
           import('./features/visitor/visitor.component').then(

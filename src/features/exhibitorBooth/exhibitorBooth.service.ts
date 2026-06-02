@@ -5,12 +5,18 @@ import { ExhibitorBoothRepository } from './exhibitorBooth.repository';
 import { VisitorCheckIn } from './visitorCheckIn.model';
 import { VisitorScannedBooth } from '@/features/visitor/visitorScannedBooth.model';
 import { EventRepository } from '@/features/event/event.repository';
+import { EventService } from '@/features/event/event.service';
 import { AuthRepository } from '@/features/auth/auth.repository';
 import { ExhibitorDocumentRepository } from '@/features/exhibitorDocument/exhibitorDocument.repository';
 import { ExhibitorDocument } from '@/features/exhibitorDocument/exhibitorDocument.model';
 import { ApiError } from '@/shared/utils/ApiError';
 import { config } from '@/config/env';
-import { CreateExhibitorBoothInput, UpdateExhibitorBoothInput, CreateBoothWithDocumentsInput } from './exhibitorBooth.schema';
+import {
+  CreateExhibitorBoothInput,
+  UpdateExhibitorBoothInput,
+  CreateBoothWithDocumentsInput,
+  CreateEventWithBoothAndDocumentsInput,
+} from './exhibitorBooth.schema';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { verifyToken } from '@/shared/utils/jwt';
 import { anthropic } from '@/config/anthropic';
@@ -24,12 +30,14 @@ const generateQrId = customAlphabet(
 export class ExhibitorBoothService {
   private repository: ExhibitorBoothRepository;
   private eventRepository: EventRepository;
+  private eventService: EventService;
   private authRepository: AuthRepository;
   private docRepository: ExhibitorDocumentRepository;
 
   constructor() {
     this.repository = new ExhibitorBoothRepository();
     this.eventRepository = new EventRepository();
+    this.eventService = new EventService();
     this.authRepository = new AuthRepository();
     this.docRepository = new ExhibitorDocumentRepository();
   }
@@ -422,6 +430,35 @@ export class ExhibitorBoothService {
         qrUrl: booth.qrUrl,
       },
       documents: processedDocs,
+    };
+  }
+
+  async createEventWithBoothAndDocuments(
+    userId: string,
+    payload: CreateEventWithBoothAndDocumentsInput
+  ) {
+    const event = await this.eventService.createEvent(userId, {
+      name: payload.eventName,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+    });
+
+    const boothResult = await this.createBoothWithDocuments(userId, event._id.toString(), {
+      boothName: payload.boothName,
+      description: payload.description,
+      documents: payload.documents,
+    });
+
+    return {
+      event: {
+        id: event._id,
+        name: event.name,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        driveEventFolderId: event.driveEventFolderId,
+        driveImagesFolderId: event.driveImagesFolderId,
+      },
+      ...boothResult,
     };
   }
 }

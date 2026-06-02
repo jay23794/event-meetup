@@ -1,0 +1,246 @@
+<section *ngIf="data() as page; else missing" class="flex flex-col gap-6">
+  <header class="flex flex-col gap-1">
+    <a
+      routerLink="/home"
+      class="text-sm font-medium text-primary-700 hover:underline"
+    >
+      ← Back to Home
+    </a>
+    <h1
+      class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl"
+    >
+      Booth Created
+    </h1>
+    <p class="text-sm text-slate-600">
+      Share this QR with visitors. Each scan registers a check-in for
+      <span class="font-medium text-slate-800">{{ page.booth.boothName }}</span>.
+    </p>
+  </header>
+
+  <div
+    class="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 md:grid-cols-[auto,1fr]"
+  >
+    <div class="flex flex-col items-center gap-3">
+      <div
+        class="flex h-[320px] w-[320px] items-center justify-center rounded-xl border border-slate-200 bg-white p-3"
+      >
+        <img
+          *ngIf="qrDataUrl() as src; else qrLoading"
+          [src]="src"
+          alt="Booth QR code"
+          class="h-full w-full object-contain"
+        />
+        <ng-template #qrLoading>
+          <div class="text-sm text-slate-500">Generating QR…</div>
+        </ng-template>
+      </div>
+      <p class="max-w-[320px] break-all text-center text-xs text-slate-500">
+        {{ page.booth.qrUrl }}
+      </p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          (click)="copyUrl(page.booth.qrUrl)"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          {{ copied() ? 'Copied!' : 'Copy URL' }}
+        </button>
+        <a
+          *ngIf="qrDataUrl() as src"
+          [href]="src"
+          [download]="downloadName(page.booth)"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Download
+        </a>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium uppercase tracking-wide text-slate-500"
+          >Event</span
+        >
+        <span class="text-base font-semibold text-slate-900">
+          {{ page.event.name }}
+        </span>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium uppercase tracking-wide text-slate-500"
+          >Booth</span
+        >
+        <span class="text-base font-semibold text-slate-900">
+          {{ page.booth.boothName }}
+        </span>
+        <p
+          *ngIf="page.booth.description"
+          class="text-sm text-slate-600"
+        >
+          {{ page.booth.description }}
+        </p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium uppercase tracking-wide text-slate-500"
+          >QR ID</span
+        >
+        <span class="font-mono text-sm text-slate-800">
+          {{ page.booth.qrId }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <section class="flex flex-col gap-3">
+    <h2 class="text-lg font-semibold text-slate-900">Extracted contact info</h2>
+    <div
+      *ngIf="contactGroups().length > 0; else noContacts"
+      class="grid gap-3 sm:grid-cols-2"
+    >
+      <div
+        *ngFor="let group of contactGroups()"
+        class="rounded-xl border border-slate-200 bg-white p-4"
+      >
+        <div
+          class="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500"
+        >
+          {{ group.label }}
+        </div>
+        <ul class="flex flex-col gap-1 text-sm text-slate-800">
+          <li
+            *ngFor="let value of group.values"
+            class="break-all"
+          >
+            <ng-container [ngSwitch]="group.label">
+              <a
+                *ngSwitchCase="'Mobile'"
+                [href]="'tel:' + value"
+                class="text-primary-700 hover:underline"
+                >{{ value }}</a
+              >
+              <a
+                *ngSwitchCase="'Email'"
+                [href]="'mailto:' + value"
+                class="text-primary-700 hover:underline"
+                >{{ value }}</a
+              >
+              <a
+                *ngSwitchCase="'Website'"
+                [href]="ensureHttp(value)"
+                target="_blank"
+                rel="noopener"
+                class="text-primary-700 hover:underline"
+                >{{ value }}</a
+              >
+              <a
+                *ngSwitchCase="'Social Media'"
+                [href]="ensureHttp(value)"
+                target="_blank"
+                rel="noopener"
+                class="text-primary-700 hover:underline"
+                >{{ value }}</a
+              >
+              <span *ngSwitchDefault>{{ value }}</span>
+            </ng-container>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <ng-template #noContacts>
+      <div
+        class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500"
+      >
+        No contact details were extracted from the uploaded documents.
+      </div>
+    </ng-template>
+  </section>
+
+  <section class="flex flex-col gap-3">
+    <h2 class="text-lg font-semibold text-slate-900">
+      Documents ({{ page.documents.length }})
+    </h2>
+    <ul
+      *ngIf="page.documents.length > 0; else noDocs"
+      class="flex flex-col gap-2"
+    >
+      <li
+        *ngFor="let doc of page.documents"
+        class="rounded-xl border border-slate-200 bg-white p-4"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="truncate text-sm font-semibold text-slate-900">
+              {{ doc.fileName }}
+            </div>
+            <div class="text-xs uppercase tracking-wide text-slate-500">
+              {{ doc.fileType }}
+            </div>
+          </div>
+        </div>
+        <dl
+          *ngIf="hasExtractedFields(doc)"
+          class="mt-3 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2"
+        >
+          <ng-container *ngIf="doc.extractedName">
+            <dt class="text-xs text-slate-500">Name</dt>
+            <dd class="text-slate-800">{{ doc.extractedName }}</dd>
+          </ng-container>
+          <ng-container *ngIf="doc.extractedTitle">
+            <dt class="text-xs text-slate-500">Title</dt>
+            <dd class="text-slate-800">{{ doc.extractedTitle }}</dd>
+          </ng-container>
+          <ng-container *ngIf="doc.extractedCompany">
+            <dt class="text-xs text-slate-500">Company</dt>
+            <dd class="text-slate-800">{{ doc.extractedCompany }}</dd>
+          </ng-container>
+          <ng-container *ngIf="doc.extractedEmail">
+            <dt class="text-xs text-slate-500">Email</dt>
+            <dd class="break-all text-slate-800">{{ doc.extractedEmail }}</dd>
+          </ng-container>
+          <ng-container *ngIf="doc.extractedPhone">
+            <dt class="text-xs text-slate-500">Phone</dt>
+            <dd class="text-slate-800">{{ doc.extractedPhone }}</dd>
+          </ng-container>
+          <ng-container *ngIf="doc.extractedWebsite">
+            <dt class="text-xs text-slate-500">Website</dt>
+            <dd class="break-all text-slate-800">{{ doc.extractedWebsite }}</dd>
+          </ng-container>
+          <ng-container *ngIf="doc.extractedAddress">
+            <dt class="text-xs text-slate-500">Address</dt>
+            <dd class="text-slate-800">{{ doc.extractedAddress }}</dd>
+          </ng-container>
+        </dl>
+      </li>
+    </ul>
+    <ng-template #noDocs>
+      <div
+        class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500"
+      >
+        No documents were attached.
+      </div>
+    </ng-template>
+  </section>
+
+  <div class="flex justify-end gap-2">
+    <a
+      routerLink="/home/exhibitor"
+      class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+    >
+      Create another booth
+    </a>
+  </div>
+</section>
+
+<ng-template #missing>
+  <section class="flex flex-col items-center gap-4 py-12 text-center">
+    <h2 class="text-xl font-semibold text-slate-900">No booth to show</h2>
+    <p class="max-w-sm text-sm text-slate-600">
+      Create an exhibitor booth first to generate a QR code.
+    </p>
+    <a
+      routerLink="/home/exhibitor"
+      class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+    >
+      Go to Create Booth
+    </a>
+  </section>
+</ng-template>

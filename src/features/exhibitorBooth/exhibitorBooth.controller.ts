@@ -132,4 +132,17 @@ export class ExhibitorBoothController {
     const result = await this.service.createBoothWithDocuments(userId, eventId, req.body);
     res.status(201).json(ApiResponse.success(result, 'Booth created with documents'));
   });
+
+  createEventWithBoothAndDocuments = asyncHandler(
+    async (req: AuthenticatedRequest, res: Response) => {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json(ApiResponse.error('Unauthorized'));
+      }
+      const result = await this.service.createEventWithBoothAndDocuments(userId, req.body);
+      res
+        .status(201)
+        .json(ApiResponse.success(result, 'Event, booth and documents created'));
+    }
+  );
 }

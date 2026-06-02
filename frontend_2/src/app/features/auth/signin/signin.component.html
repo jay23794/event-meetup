@@ -1,0 +1,96 @@
+<main
+  class="flex min-h-[100dvh] items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-primary-50 via-slate-50 to-white"
+>
+  <section
+    class="flex w-full max-w-sm flex-col gap-5 rounded-2xl bg-white p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)] sm:max-w-md sm:p-9"
+    role="region"
+    aria-labelledby="signin-title"
+  >
+    <header class="flex flex-col items-center gap-2 text-center">
+      <div
+        class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-base font-bold tracking-wide text-white shadow-lg shadow-primary-600/25"
+        aria-hidden="true"
+      >
+        MS
+      </div>
+      <h1
+        id="signin-title"
+        class="text-xl font-semibold leading-tight text-slate-900 sm:text-2xl"
+      >
+        Welcome to Meet Sync
+      </h1>
+      <p class="text-sm text-slate-500 sm:text-[15px]">
+        Sign in to manage your events and booths.
+      </p>
+    </header>
+
+    @if (errorMessage()) {
+      <div
+        class="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] leading-snug text-red-700"
+        role="alert"
+      >
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <button
+      type="button"
+      class="inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-slate-300 bg-white px-4 py-3 text-[15px] font-medium text-slate-800 transition hover:bg-slate-50 hover:shadow-sm active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-75"
+      (click)="onGoogleSignIn()"
+      [disabled]="loading()"
+      aria-label="Sign in with Google"
+    >
+      @if (loading()) {
+        <span
+          class="h-[18px] w-[18px] animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"
+          aria-hidden="true"
+        ></span>
+        <span class="whitespace-nowrap">Connecting…</span>
+      } @else {
+        <svg
+          class="h-5 w-5 shrink-0"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 48 48"
+          aria-hidden="true"
+        >
+          <path
+            fill="#FFC107"
+            d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+          />
+          <path
+            fill="#FF3D00"
+            d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+          />
+          <path
+            fill="#4CAF50"
+            d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+          />
+          <path
+            fill="#1976D2"
+            d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+          />
+        </svg>
+        <span class="whitespace-nowrap">Continue with Google</span>
+      }
+    </button>
+
+    <p class="text-center text-xs leading-relaxed text-slate-500">
+      By continuing, you agree to our
+      <a
+        href="/terms"
+        target="_blank"
+        rel="noopener"
+        class="text-blue-600 hover:underline focus-visible:underline"
+        >Terms</a
+      >
+      and
+      <a
+        href="/privacy-policy"
+        target="_blank"
+        rel="noopener"
+        class="text-blue-600 hover:underline focus-visible:underline"
+        >Privacy Policy</a
+      >.
+    </p>
+  </section>
+</main>

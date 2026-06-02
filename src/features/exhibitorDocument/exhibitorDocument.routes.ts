@@ -152,7 +152,7 @@ router.delete('/booths/:boothId/documents/:docId', controller.deleteDocument);
  *     tags:
  *       - Exhibitor Booths
  *     summary: Extract and structure text from an exhibitor document
- *     description: "Accepts raw OCR text, structures it with Anthropic API, saves to MongoDB, and syncs to Google Sheets."
+ *     description: "Accepts raw OCR text, structures it with Anthropic API, and saves to MongoDB."
  *     parameters:
  *       - in: path
  *         name: boothId

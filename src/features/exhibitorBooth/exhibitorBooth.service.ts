@@ -1,6 +1,9 @@
 import { customAlphabet } from 'nanoid';
 import { google } from 'googleapis';
+import mongoose from 'mongoose';
 import { ExhibitorBoothRepository } from './exhibitorBooth.repository';
+import { VisitorCheckIn } from './visitorCheckIn.model';
+import { VisitorScannedBooth } from '@/features/visitor/visitorScannedBooth.model';
 import { EventRepository } from '@/features/event/event.repository';
 import { AuthRepository } from '@/features/auth/auth.repository';
 import { ExhibitorDocumentRepository } from '@/features/exhibitorDocument/exhibitorDocument.repository';
@@ -9,8 +12,6 @@ import { ApiError } from '@/shared/utils/ApiError';
 import { config } from '@/config/env';
 import { CreateExhibitorBoothInput, UpdateExhibitorBoothInput, CreateBoothWithDocumentsInput } from './exhibitorBooth.schema';
 import { createOAuthClient } from '@/shared/google/oauth.client';
-import { SheetsClient } from '@/shared/google/sheets.client';
-import { DriveClient } from '@/shared/google/drive.client';
 import { verifyToken } from '@/shared/utils/jwt';
 import { anthropic } from '@/config/anthropic';
 import { DOCUMENT_EXTRACTION_PROMPT } from '@/features/scan/scan.prompt';
@@ -100,74 +101,55 @@ export class ExhibitorBoothService {
     visitorData: { name: string; email: string; phone?: string },
     authToken?: string
   ): Promise<{ alreadyCheckedIn: boolean; booth: any }> {
-    console.log('[CheckIn] START', { qrId, email: visitorData.email, hasAuthToken: !!authToken });
-
     const booth = await this.repository.findByQrId(qrId);
     if (!booth) {
-      console.log('[CheckIn] FAIL: booth not found for qrId', qrId);
       throw ApiError.notFound('Booth not found');
     }
-    console.log('[CheckIn] booth found', { boothId: booth._id.toString(), boothName: booth.boothName, ownerUserId: booth.ownerUserId.toString() });
 
     const event = await this.eventRepository.findEventById(booth.eventId.toString());
     if (!event) {
-      console.log('[CheckIn] FAIL: event not found', booth.eventId.toString());
       throw ApiError.notFound('Event not found');
     }
-    console.log('[CheckIn] event found', { eventName: event.name });
 
     const exhibitor = await this.authRepository.findUserByIdWithRefreshToken(
       booth.ownerUserId.toString()
     );
     if (!exhibitor) {
-      console.log('[CheckIn] FAIL: exhibitor user not found', booth.ownerUserId.toString());
       throw new ApiError(412, 'Exhibitor account not found');
     }
-    if (!exhibitor.googleRefreshToken) {
-      console.log('[CheckIn] FAIL: exhibitor has no googleRefreshToken', { exhibitorId: exhibitor._id });
-      throw new ApiError(412, 'Exhibitor has not connected their Google account');
-    }
-    console.log('[CheckIn] exhibitor found with refresh token');
 
-    // Exhibitor's visitor log sheet
-    try {
-      console.log('[CheckIn] Step 1/4: ensureVisitorSheetCreated', { visitorSheetCreated: booth.visitorSheetCreated, visitorSheetId: booth.visitorSheetId });
-      await this.ensureVisitorSheetCreated(booth, exhibitor.googleRefreshToken);
-      console.log('[CheckIn] Step 1/4 OK', { visitorSheetId: booth.visitorSheetId });
-    } catch (error) {
-      console.error('[CheckIn] Step 1/4 FAIL:', error);
-      throw error;
-    }
-
-    let exhibitorAlreadyChecked = false;
-    try {
-      console.log('[CheckIn] Step 2/4: isExhibitorSheetHasEmail', { sheetId: booth.visitorSheetId, email: visitorData.email });
-      exhibitorAlreadyChecked = await this.isExhibitorSheetHasEmail(
-        booth,
-        exhibitor.googleRefreshToken,
-        visitorData.email
-      );
-      console.log('[CheckIn] Step 2/4 OK', { exhibitorAlreadyChecked });
-    } catch (error) {
-      console.error('[CheckIn] Step 2/4 FAIL:', error);
-      throw error;
-    }
-
-    if (!exhibitorAlreadyChecked) {
+    // Optional visitor user id (when scanning while signed in)
+    let visitorUserId: string | undefined;
+    if (authToken) {
       try {
-        console.log('[CheckIn] Step 3/4: appendToExhibitorSheet');
-        await this.appendToExhibitorSheet(booth, exhibitor.googleRefreshToken, visitorData);
-        await this.repository.incrementScanCount(booth._id.toString());
-        console.log('[CheckIn] Step 3/4 OK: appended row + incremented scanCount');
-      } catch (error) {
-        console.error('[CheckIn] Step 3/4 FAIL:', error);
+        const payload = verifyToken(authToken);
+        visitorUserId = payload.id;
+      } catch {
+        // ignore — treat as anonymous check-in
+      }
+    }
+
+    // Exhibitor-side check-in (unique on boothId+email)
+    let alreadyCheckedIn = false;
+    try {
+      await VisitorCheckIn.create({
+        exhibitorBoothId: booth._id,
+        eventId: booth.eventId,
+        visitorUserId: visitorUserId ? new mongoose.Types.ObjectId(visitorUserId) : undefined,
+        name: visitorData.name,
+        email: visitorData.email,
+        phone: visitorData.phone,
+      });
+      await this.repository.incrementScanCount(booth._id.toString());
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        alreadyCheckedIn = true;
+      } else {
         throw error;
       }
-    } else {
-      console.log('[CheckIn] Step 3/4 SKIPPED (already checked in)');
     }
 
-    // Look up booth's public documents — used both for sharing and for sheet column
+    // Public documents — used both for visitor's record and for Drive sharing
     const publicDocuments = await ExhibitorDocument.find({
       exhibitorBoothId: booth._id,
       isPublic: true,
@@ -176,60 +158,47 @@ export class ExhibitorBoothService {
       .map((d) => d.driveFileUrl)
       .filter((url): url is string => !!url);
 
-    // Share booth's public documents with visitor's email so they show up in their Drive "Shared with me"
-    try {
-      console.log('[CheckIn] sharing public docs with visitor');
-      await this.shareDocumentsWithVisitor(
-        publicDocuments,
-        exhibitor.googleRefreshToken,
-        visitorData.email
-      );
-      console.log('[CheckIn] doc sharing done');
-    } catch (error) {
-      console.error('[CheckIn] doc sharing FAIL (non-fatal):', error);
-    }
-
-    // Visitor's scanned booths sheet (only if authenticated)
-    if (authToken) {
+    // Drive share (best-effort; non-fatal)
+    if (exhibitor.googleRefreshToken && publicDocuments.length > 0) {
       try {
-        console.log('[CheckIn] Step 4/4: visitor sheet update');
-        const payload = verifyToken(authToken);
-        console.log('[CheckIn] JWT verified', { userId: payload.id, email: payload.email });
-        const visitor = await this.authRepository.findUserByIdWithRefreshToken(payload.id);
-        if (!visitor) {
-          console.log('[CheckIn] WARN: visitor user not found in DB', payload.id);
-        } else if (!visitor.googleRefreshToken) {
-          console.log('[CheckIn] WARN: visitor has no googleRefreshToken', { visitorId: visitor._id });
-        } else {
-          console.log('[CheckIn] visitor found with refresh token', { visitorId: visitor._id, visitedBoothsSheetId: visitor.visitedBoothsSheetId });
-          const visitorAlreadyScanned = await this.isVisitorBoothAlreadyScanned(
-            visitor,
-            booth.qrId
-          );
-          console.log('[CheckIn] visitorAlreadyScanned check', { visitorAlreadyScanned });
-          if (!visitorAlreadyScanned) {
-            await this.ensureVisitorScannedBoothSheet(visitor);
-            console.log('[CheckIn] visitor sheet ensured', { sheetId: visitor.visitedBoothsSheetId });
-            await this.appendToVisitorSheet(visitor, booth, event.name, sharedDocUrls);
-            console.log('[CheckIn] Step 4/4 OK: appended row to visitor sheet');
-          } else {
-            console.log('[CheckIn] Step 4/4 SKIPPED (already in visitor sheet)');
-          }
-        }
+        await this.shareDocumentsWithVisitor(
+          publicDocuments,
+          exhibitor.googleRefreshToken,
+          visitorData.email
+        );
       } catch (error) {
-        console.error('[CheckIn] Step 4/4 FAIL (non-fatal):', error);
+        console.error('[CheckIn] doc sharing FAIL (non-fatal):', error);
       }
-    } else {
-      console.log('[CheckIn] Step 4/4 SKIPPED (no authToken)');
     }
 
-    console.log('[CheckIn] DONE', { alreadyCheckedIn: exhibitorAlreadyChecked });
+    // Visitor's scanned-booth record
+    if (visitorUserId) {
+      try {
+        await VisitorScannedBooth.updateOne(
+          { visitorUserId: new mongoose.Types.ObjectId(visitorUserId), qrId: booth.qrId },
+          {
+            $setOnInsert: {
+              visitorUserId: new mongoose.Types.ObjectId(visitorUserId),
+              exhibitorBoothId: booth._id,
+              qrId: booth.qrId,
+              boothName: booth.boothName,
+              eventName: event.name,
+              sharedDocUrls,
+            },
+          },
+          { upsert: true }
+        );
+      } catch (error) {
+        console.error('[CheckIn] visitor scanned-booth record FAIL (non-fatal):', error);
+      }
+    }
+
     return {
-      alreadyCheckedIn: exhibitorAlreadyChecked,
+      alreadyCheckedIn,
       booth: {
         boothName: booth.boothName,
         description: booth.description,
-        scanCount: exhibitorAlreadyChecked ? booth.scanCount : booth.scanCount + 1,
+        scanCount: alreadyCheckedIn ? booth.scanCount : booth.scanCount + 1,
       },
     };
   }
@@ -239,7 +208,6 @@ export class ExhibitorBoothService {
     exhibitorRefreshToken: string,
     visitorEmail: string
   ): Promise<void> {
-    console.log('[CheckIn] found public documents to share', { count: documents.length });
     if (documents.length === 0) return;
 
     const auth = createOAuthClient(exhibitorRefreshToken);
@@ -256,162 +224,12 @@ export class ExhibitorBoothService {
             emailAddress: visitorEmail,
           },
         });
-        console.log('[CheckIn] shared doc', { fileName: doc.fileName, visitorEmail });
       } catch (error: any) {
-        // duplicate share is fine — Drive returns 400 if already shared
-        if (error?.message?.includes('already')) {
-          console.log('[CheckIn] doc already shared with visitor', { fileName: doc.fileName });
-        } else {
+        if (!error?.message?.includes('already')) {
           console.error('[CheckIn] share failed', { fileName: doc.fileName, message: error?.message });
         }
       }
     }
-  }
-
-  private async ensureVisitorSheetCreated(
-    booth: any,
-    exhibitorRefreshToken: string
-  ): Promise<void> {
-    if (booth.visitorSheetCreated && booth.visitorSheetId) {
-      console.log('[CheckIn] visitor sheet already exists', { sheetId: booth.visitorSheetId });
-      return;
-    }
-
-    console.log('[CheckIn] creating new visitor sheet for booth', booth.boothName);
-    const auth = createOAuthClient(exhibitorRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
-
-    const { sheetId, sheetUrl } = await sheetsClient.createSheet(
-      `${booth.boothName} - Visitor Log`
-    );
-    console.log('[CheckIn] sheet created', { sheetId });
-
-    await sheetsClient.addHeaderRow(sheetId, [
-      'Timestamp',
-      'Visitor Name',
-      'Visitor Email',
-      'Visitor Phone',
-      'Booth Name',
-    ]);
-    console.log('[CheckIn] header row added');
-
-    await this.repository.updateVisitorSheet(booth._id.toString(), {
-      visitorSheetId: sheetId,
-      visitorSheetUrl: sheetUrl,
-      visitorSheetCreated: true,
-    });
-
-    // Mutate in-memory booth so subsequent calls see the new sheet ID
-    booth.visitorSheetId = sheetId;
-    booth.visitorSheetUrl = sheetUrl;
-    booth.visitorSheetCreated = true;
-    console.log('[CheckIn] booth in-memory updated with sheetId');
-  }
-
-  private async isExhibitorSheetHasEmail(
-    booth: any,
-    exhibitorRefreshToken: string,
-    email: string
-  ): Promise<boolean> {
-    if (!booth.visitorSheetCreated || !booth.visitorSheetId) return false;
-
-    const auth = createOAuthClient(exhibitorRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
-
-    try {
-      const rows = await sheetsClient.readRange(
-        booth.visitorSheetId,
-        'Sheet1!C2:C'
-      );
-      const emails = rows.flat();
-      return emails.includes(email);
-    } catch (error) {
-      return false;
-    }
-  }
-
-  private async appendToExhibitorSheet(
-    booth: any,
-    exhibitorRefreshToken: string,
-    visitorData: { name: string; email: string; phone?: string }
-  ): Promise<void> {
-    const auth = createOAuthClient(exhibitorRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
-
-    const timestamp = new Date().toISOString();
-    const rowData = [
-      timestamp,
-      visitorData.name,
-      visitorData.email,
-      visitorData.phone || '',
-      booth.boothName,
-    ];
-
-    await sheetsClient.appendRow(booth.visitorSheetId, rowData);
-  }
-
-  private async ensureVisitorScannedBoothSheet(visitor: any): Promise<void> {
-    if (visitor.visitedBoothsSheetId) return;
-
-    const auth = createOAuthClient(visitor.googleRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
-
-    const { sheetId } = await sheetsClient.createSheet('My Scanned Booths');
-    await sheetsClient.addHeaderRow(sheetId, [
-      'Timestamp',
-      'Booth Name',
-      'Event',
-      'Booth QR ID',
-      'Shared Documents',
-    ]);
-
-    await this.authRepository.updateUser(visitor._id.toString(), {
-      visitedBoothsSheetId: sheetId,
-    });
-
-    visitor.visitedBoothsSheetId = sheetId;
-  }
-
-  private async isVisitorBoothAlreadyScanned(
-    visitor: any,
-    boothQrId: string
-  ): Promise<boolean> {
-    if (!visitor.visitedBoothsSheetId) return false;
-
-    const auth = createOAuthClient(visitor.googleRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
-
-    try {
-      const rows = await sheetsClient.readRange(
-        visitor.visitedBoothsSheetId,
-        'Sheet1!D2:D'
-      );
-      const qrIds = rows.flat();
-      return qrIds.includes(boothQrId);
-    } catch (error) {
-      return false;
-    }
-  }
-
-  private async appendToVisitorSheet(
-    visitor: any,
-    booth: any,
-    eventName: string,
-    sharedDocUrls: string[] = []
-  ): Promise<void> {
-    const auth = createOAuthClient(visitor.googleRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
-
-    const timestamp = new Date().toISOString();
-    const rowData = [
-      timestamp,
-      booth.boothName,
-      eventName,
-      booth.qrId,
-      sharedDocUrls.join(', '),
-    ];
-
-    await sheetsClient.appendRow(visitor.visitedBoothsSheetId, rowData);
   }
 
   async listVisitorScannedBooths(
@@ -438,76 +256,47 @@ export class ExhibitorBoothService {
     const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
     const cursor = Math.max(opts.cursor ?? 0, 0);
 
-    const visitor = await this.authRepository.findUserByIdWithRefreshToken(userId);
-    if (!visitor) return { booths: [], nextCursor: null, total: 0 };
-    if (!visitor.visitedBoothsSheetId || !visitor.googleRefreshToken) {
+    const visitorObjId = new mongoose.Types.ObjectId(userId);
+
+    const total = await VisitorScannedBooth.countDocuments({ visitorUserId: visitorObjId });
+    if (total === 0) {
       return { booths: [], nextCursor: null, total: 0 };
     }
 
-    const auth = createOAuthClient(visitor.googleRefreshToken);
-    const sheetsClient = new SheetsClient(auth);
+    const page = await VisitorScannedBooth.find({ visitorUserId: visitorObjId })
+      .sort({ createdAt: -1 })
+      .skip(cursor)
+      .limit(limit)
+      .lean();
 
-    try {
-      const rows = await sheetsClient.readRange(
-        visitor.visitedBoothsSheetId,
-        'Sheet1!A2:E'
-      );
+    const nextCursor = cursor + page.length < total ? cursor + page.length : null;
 
-      const parsed = rows
-        .filter((row) => Array.isArray(row) && row.length > 0)
-        .map((row) => {
-          const r = row as unknown[];
-          const urls = typeof r[4] === 'string' && r[4]
-            ? (r[4] as string).split(',').map((s) => s.trim()).filter(Boolean)
-            : [];
-          return {
-            timestamp: (r[0] as string) ?? '',
-            boothName: (r[1] as string) ?? '',
-            eventName: (r[2] as string) ?? '',
-            qrId: (r[3] as string) ?? '',
-            urls,
-          };
-        })
-        .filter((entry) => entry.qrId);
+    const pageUrls = Array.from(new Set(page.flatMap((p) => p.sharedDocUrls ?? [])));
+    const docs = pageUrls.length
+      ? await ExhibitorDocument.find({ driveFileUrl: { $in: pageUrls } })
+      : [];
+    const docByUrl = new Map(docs.map((d) => [d.driveFileUrl, d]));
 
-      // Newest first — sheet append order is oldest→newest, so reverse + tie-break by timestamp.
-      parsed.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
+    const booths = page.map((entry) => ({
+      timestamp: entry.createdAt.toISOString(),
+      boothName: entry.boothName,
+      eventName: entry.eventName,
+      qrId: entry.qrId,
+      sharedDocuments: (entry.sharedDocUrls ?? []).map((url) => {
+        const doc = docByUrl.get(url);
+        if (!doc) return { url };
+        return {
+          url,
+          fileId: doc.driveFileId,
+          fileName: doc.fileName,
+          mimeType: doc.mimeType,
+          fileType: doc.fileType,
+          thumbnailUrl: `https://drive.google.com/thumbnail?id=${doc.driveFileId}&sz=w400`,
+        };
+      }),
+    }));
 
-      const total = parsed.length;
-      const page = parsed.slice(cursor, cursor + limit);
-      const nextCursor = cursor + page.length < total ? cursor + page.length : null;
-
-      // Enrich docs only for the current page.
-      const pageUrls = Array.from(new Set(page.flatMap((p) => p.urls)));
-      const docs = pageUrls.length
-        ? await ExhibitorDocument.find({ driveFileUrl: { $in: pageUrls } })
-        : [];
-      const docByUrl = new Map(docs.map((d) => [d.driveFileUrl, d]));
-
-      const booths = page.map((entry) => ({
-        timestamp: entry.timestamp,
-        boothName: entry.boothName,
-        eventName: entry.eventName,
-        qrId: entry.qrId,
-        sharedDocuments: entry.urls.map((url) => {
-          const doc = docByUrl.get(url);
-          if (!doc) return { url };
-          return {
-            url,
-            fileId: doc.driveFileId,
-            fileName: doc.fileName,
-            mimeType: doc.mimeType,
-            fileType: doc.fileType,
-            thumbnailUrl: `https://drive.google.com/thumbnail?id=${doc.driveFileId}&sz=w400`,
-          };
-        }),
-      }));
-
-      return { booths, nextCursor, total };
-    } catch (error) {
-      console.error('[ListVisitorScannedBooths] read failed:', error);
-      return { booths: [], nextCursor: null, total: 0 };
-    }
+    return { booths, nextCursor, total };
   }
 
   async createBoothWithDocuments(
@@ -526,19 +315,6 @@ export class ExhibitorBoothService {
       }>;
     }
   ) {
-    console.log('[CreateBoothWithDocuments] ENTRY:', {
-      userId,
-      eventId,
-      boothName: payload.boothName,
-      documentsCount: payload.documents?.length ?? 0,
-      hasDocumentsArray: Array.isArray(payload.documents),
-      firstDocPreview: payload.documents?.[0] ? {
-        fileName: payload.documents[0].fileName,
-        fileType: payload.documents[0].fileType,
-        rawTextLength: payload.documents[0].rawText?.length ?? 0,
-      } : null,
-    });
-
     const event = await this.eventRepository.findEventById(eventId);
     if (!event) {
       throw ApiError.notFound('Event not found');
@@ -547,12 +323,6 @@ export class ExhibitorBoothService {
       throw ApiError.forbidden('You do not have access to this event');
     }
 
-    const user = await this.authRepository.findUserByIdWithRefreshToken(userId);
-    if (!user?.googleRefreshToken) {
-      throw new ApiError(412, 'Google account connection required');
-    }
-
-    // Create booth
     const qrId = generateQrId();
     const qrUrl = `${config.PUBLIC_APP_URL}/exhibitor/${qrId}`;
 
@@ -565,180 +335,93 @@ export class ExhibitorBoothService {
       qrUrl,
     });
 
-    let sheetUrl = '';
+    const processedDocs: Array<{
+      id: mongoose.Types.ObjectId;
+      fileName: string;
+      fileType: 'card' | 'brochure';
+      extractedName?: string;
+      extractedCompany?: string;
+      extractedEmail?: string;
+      extractedPhone?: string;
+      extractedTitle?: string;
+      extractedWebsite?: string;
+      extractedAddress?: string;
+    }> = [];
 
-    try {
-      const oauth = createOAuthClient(user.googleRefreshToken);
-      const sheetsClient = new SheetsClient(oauth);
-
-      // Ensure master extraction sheet exists for user (one master sheet per user, reused across all events and booths)
-      let masterSheetId = user.docExtractSheetId;
-      let isNewMasterSheet = false;
-      if (!masterSheetId) {
-        console.log('[CreateBoothWithDocuments] Creating master sheet for user:', user.email);
-        const { sheetId, sheetUrl: newSheetUrl } = await sheetsClient.createSheet(
-          `${user.name} - Document Extractions`
-        );
-        masterSheetId = sheetId;
-        sheetUrl = newSheetUrl;
-        isNewMasterSheet = true;
-
-        // Save master sheet to user record
-        await this.authRepository.updateUser(userId, {
-          docExtractSheetId: sheetId,
-          docExtractSheetUrl: newSheetUrl,
+    for (const doc of payload.documents) {
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1024,
+          messages: [
+            {
+              role: 'user',
+              content: `${DOCUMENT_EXTRACTION_PROMPT}\n\nOCR Text:\n${doc.rawText}`,
+            },
+          ],
         });
-        console.log('[CreateBoothWithDocuments] Master sheet created and saved on user:', { masterSheetId });
-      } else {
-        sheetUrl = user.docExtractSheetUrl || '';
-        console.log('[CreateBoothWithDocuments] Reusing existing master sheet:', { masterSheetId });
-      }
 
-      // Add booth-specific tab to master sheet — prefix with event name to avoid collisions across events
-      const rawTabName = `${event.name} - ${booth.boothName}`;
-      const boothTabName = rawTabName.substring(0, 31); // Google Sheets tab name limit
-      console.log('[CreateBoothWithDocuments] Adding booth tab:', { boothName: booth.boothName, tabName: boothTabName });
-      await sheetsClient.addSheet(masterSheetId, boothTabName);
-      console.log('[CreateBoothWithDocuments] Booth tab added, now adding headers');
-
-      // If master sheet was just created, delete the default empty "Sheet1" tab (sheetId 0)
-      if (isNewMasterSheet) {
-        try {
-          await sheetsClient.deleteSheet(masterSheetId, 0);
-          console.log('[CreateBoothWithDocuments] Default Sheet1 deleted');
-        } catch (err) {
-          console.warn('[CreateBoothWithDocuments] Could not delete default Sheet1 (non-fatal):', err instanceof Error ? err.message : err);
+        const textContent = response.content.find((c) => c.type === 'text');
+        if (!textContent || textContent.type !== 'text') {
+          throw new ApiError(502, 'Anthropic API returned unexpected response');
         }
+
+        const cleanText = textContent.text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(cleanText);
+
+        const createdDoc = await this.docRepository.create({
+          ownerUserId: userId,
+          exhibitorBoothId: booth._id.toString(),
+          eventId,
+          driveFileId: doc.driveFileId,
+          driveFileUrl: doc.driveFileUrl,
+          fileName: doc.fileName,
+          fileType: doc.fileType,
+          mimeType: doc.mimeType,
+          sizeBytes: doc.sizeBytes,
+          extractedText: doc.rawText,
+          extractedName: parsed.name || undefined,
+          extractedCompany: parsed.company || undefined,
+          extractedTitle: parsed.title || undefined,
+          extractedPhone: parsed.phone || undefined,
+          extractedEmail: parsed.email || undefined,
+          extractedWebsite: parsed.website || undefined,
+          extractedAddress: parsed.address || undefined,
+          extractionStatus: 'success',
+          isPublic: doc.isPublic ?? true,
+        });
+
+        await this.repository.incrementDocumentCount(booth._id.toString());
+
+        processedDocs.push({
+          id: createdDoc._id,
+          fileName: createdDoc.fileName,
+          fileType: createdDoc.fileType,
+          extractedName: createdDoc.extractedName,
+          extractedCompany: createdDoc.extractedCompany,
+          extractedEmail: createdDoc.extractedEmail,
+          extractedPhone: createdDoc.extractedPhone,
+          extractedTitle: createdDoc.extractedTitle,
+          extractedWebsite: createdDoc.extractedWebsite,
+          extractedAddress: createdDoc.extractedAddress,
+        });
+      } catch (err) {
+        console.error('[CreateBoothWithDocuments] Document processing error:', {
+          fileName: doc.fileName,
+          errorMessage: err instanceof Error ? err.message : String(err),
+        });
       }
-
-      // Add header row to booth tab
-      await sheetsClient.addHeaderRow(masterSheetId, [
-        'Timestamp',
-        'File Name',
-        'File Type',
-        'Name',
-        'Company',
-        'Title',
-        'Phone',
-        'Email',
-        'Website',
-        'Address',
-        'Raw Text',
-      ], boothTabName);
-      console.log('[CreateBoothWithDocuments] Headers added to booth tab');
-
-      // Process documents
-      const processedDocs = [];
-
-      for (const doc of payload.documents) {
-        try {
-          console.log('[CreateBoothWithDocuments] Processing document:', { fileName: doc.fileName, fileType: doc.fileType });
-
-          // Extract and structure text
-          const response = await anthropic.messages.create({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 1024,
-            messages: [
-              {
-                role: 'user',
-                content: `${DOCUMENT_EXTRACTION_PROMPT}\n\nOCR Text:\n${doc.rawText}`,
-              },
-            ],
-          });
-
-          const textContent = response.content.find((c) => c.type === 'text');
-          if (!textContent || textContent.type !== 'text') {
-            throw new ApiError(502, 'Anthropic API returned unexpected response');
-          }
-
-          let cleanText = textContent.text.replace(/```json|```/g, '').trim();
-          const parsed = JSON.parse(cleanText);
-          console.log('[CreateBoothWithDocuments] Extraction succeeded:', { name: parsed.name, email: parsed.email });
-
-          // Create document in DB (Drive file already uploaded by client)
-          const createdDoc = await this.docRepository.create({
-            ownerUserId: userId,
-            exhibitorBoothId: booth._id.toString(),
-            eventId,
-            driveFileId: doc.driveFileId,
-            driveFileUrl: doc.driveFileUrl,
-            fileName: doc.fileName,
-            fileType: doc.fileType,
-            mimeType: doc.mimeType,
-            sizeBytes: doc.sizeBytes,
-            extractedText: doc.rawText,
-            extractedName: parsed.name || undefined,
-            extractedCompany: parsed.company || undefined,
-            extractedTitle: parsed.title || undefined,
-            extractedPhone: parsed.phone || undefined,
-            extractedEmail: parsed.email || undefined,
-            extractedWebsite: parsed.website || undefined,
-            extractedAddress: parsed.address || undefined,
-            extractionStatus: 'success',
-            isPublic: doc.isPublic ?? true,
-          });
-          console.log('[CreateBoothWithDocuments] Document created in DB:', { docId: createdDoc._id });
-
-          await this.repository.incrementDocumentCount(booth._id.toString());
-
-          // Append to booth tab in master sheet
-          console.log('[CreateBoothWithDocuments] Appending to sheet:', { sheetId: masterSheetId, tabName: boothTabName, fileName: doc.fileName });
-          await sheetsClient.appendRow(masterSheetId, [
-            new Date().toISOString(),
-            doc.fileName,
-            doc.fileType,
-            parsed.name || '',
-            parsed.company || '',
-            parsed.title || '',
-            parsed.phone || '',
-            parsed.email || '',
-            parsed.website || '',
-            parsed.address || '',
-            doc.rawText.substring(0, 500),
-          ], boothTabName);
-          console.log('[CreateBoothWithDocuments] Row appended to sheet');
-
-          processedDocs.push({
-            id: createdDoc._id,
-            fileName: createdDoc.fileName,
-            fileType: createdDoc.fileType,
-            extractedName: createdDoc.extractedName,
-            extractedCompany: createdDoc.extractedCompany,
-            extractedEmail: createdDoc.extractedEmail,
-            extractedPhone: createdDoc.extractedPhone,
-            extractedTitle: createdDoc.extractedTitle,
-            extractedWebsite: createdDoc.extractedWebsite,
-            extractedAddress: createdDoc.extractedAddress,
-          });
-        } catch (err) {
-          console.error('[CreateBoothWithDocuments] Document processing error:', {
-            fileName: doc.fileName,
-            errorMessage: err instanceof Error ? err.message : String(err),
-            errorStack: err instanceof Error ? err.stack : undefined,
-            errorName: err instanceof Error ? err.name : 'Unknown',
-          });
-          // Continue processing other documents
-        }
-      }
-      console.log('[CreateBoothWithDocuments] Loop completed. Processed:', processedDocs.length, 'of', payload.documents.length);
-
-      return {
-        booth: {
-          id: booth._id,
-          boothName: booth.boothName,
-          description: booth.description,
-          qrId: booth.qrId,
-          qrUrl: booth.qrUrl,
-        },
-        documents: processedDocs,
-        sheetUrl,
-      };
-    } catch (error) {
-      // Clean up booth if sheet creation fails
-      if (error instanceof ApiError && error.statusCode === 412) {
-        throw error;
-      }
-      throw new ApiError(502, 'Failed to create booth with documents', { originalError: error instanceof Error ? error.message : 'Unknown' });
     }
+
+    return {
+      booth: {
+        id: booth._id,
+        boothName: booth.boothName,
+        description: booth.description,
+        qrId: booth.qrId,
+        qrUrl: booth.qrUrl,
+      },
+      documents: processedDocs,
+    };
   }
 }

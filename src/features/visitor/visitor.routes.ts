@@ -13,7 +13,7 @@ router.use(authMiddleware);
  *   get:
  *     tags:
  *       - Visitor
- *     summary: List booths the visitor has scanned (read from their "My Scanned Booths" sheet)
+ *     summary: List booths the visitor has scanned
  *     security:
  *       - bearerAuth: []
  *     responses:

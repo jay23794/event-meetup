@@ -1,14 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IEvent extends Document {
+  _id: mongoose.Types.ObjectId;
   ownerUserId: mongoose.Types.ObjectId;
   name: string;
   startDate?: Date;
   endDate?: Date;
-  sheetTabName?: string;
-  sheetCreated: boolean;
-  docExtractSheetId?: string;
-  docExtractSheetUrl?: string;
   boothCount: number;
   driveRootFolderId?: string;
   driveEventFolderId?: string;
@@ -23,10 +20,6 @@ const eventSchema = new Schema<IEvent>(
     name: { type: String, required: true },
     startDate: Date,
     endDate: Date,
-    sheetTabName: String,
-    sheetCreated: { type: Boolean, default: false },
-    docExtractSheetId: String,
-    docExtractSheetUrl: String,
     boothCount: { type: Number, default: 0 },
     driveRootFolderId: String,
     driveEventFolderId: String,

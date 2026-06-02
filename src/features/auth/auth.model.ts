@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
   email: string;
   name: string;
   password: string;
@@ -10,11 +11,6 @@ export interface IUser extends Document {
   meetSyncRootFolderId?: string;
   myBoothsFolderId?: string;
   visitedBoothsFolderId?: string;
-  visitedBoothsSheetId?: string;
-  visitorBoothSheetId?: string;
-  visitorBoothSheetUrl?: string;
-  docExtractSheetId?: string;
-  docExtractSheetUrl?: string;
   hasCreatedBooth: boolean;
   hasScannedBooth: boolean;
   lastActiveAt?: Date;
@@ -33,11 +29,6 @@ const userSchema = new Schema<IUser>(
     meetSyncRootFolderId: String,
     myBoothsFolderId: String,
     visitedBoothsFolderId: String,
-    visitedBoothsSheetId: String,
-    visitorBoothSheetId: String,
-    visitorBoothSheetUrl: String,
-    docExtractSheetId: String,
-    docExtractSheetUrl: String,
     hasCreatedBooth: { type: Boolean, default: false, index: true },
     hasScannedBooth: { type: Boolean, default: false, index: true },
     lastActiveAt: Date,

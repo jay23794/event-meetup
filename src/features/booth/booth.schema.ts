@@ -44,7 +44,7 @@ export const updateBoothSchema = z.object({
 
 export const listBoothsQuerySchema = z.object({
   limit: z.number().min(1).max(200).optional(),
-  cursor: z.number().optional(),
+  cursor: z.string().optional(),
 });
 
 export type CreateBoothInput = z.infer<typeof createBoothSchema>;

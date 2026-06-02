@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IExhibitorBooth extends Document {
+  _id: mongoose.Types.ObjectId;
   ownerUserId: mongoose.Types.ObjectId;
   eventId: mongoose.Types.ObjectId;
   boothName: string;
@@ -9,12 +10,6 @@ export interface IExhibitorBooth extends Document {
   qrUrl: string;
   documentCount: number;
   scanCount: number;
-  visitorSheetId?: string;
-  visitorSheetUrl?: string;
-  visitorSheetCreated: boolean;
-  docExtractSheetId?: string;
-  docExtractSheetUrl?: string;
-  docExtractSheetCreated: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,12 +24,6 @@ const exhibitorBoothSchema = new Schema<IExhibitorBooth>(
     qrUrl: { type: String, required: true },
     documentCount: { type: Number, default: 0 },
     scanCount: { type: Number, default: 0 },
-    visitorSheetId: String,
-    visitorSheetUrl: String,
-    visitorSheetCreated: { type: Boolean, default: false },
-    docExtractSheetId: String,
-    docExtractSheetUrl: String,
-    docExtractSheetCreated: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -1,5 +1,7 @@
+import { IBoothScan } from './booth.model';
+
 export type BoothRow = {
-  rowNumber: number;
+  id: string;
   timestamp: string;
   boothName: string | null;
   scanCount: number;
@@ -10,10 +12,7 @@ export type BoothRow = {
   websites: string[];
   linkedinUrls: string[];
   socialMediaUrls: string[];
-  rawOcr: Array<{
-    ocrText: string;
-    extractedFields: Record<string, any>;
-  }>;
+  rawOcr: IBoothScan[];
   voiceTranscript: string | null;
   imageUrls: string[];
 };
@@ -21,16 +20,4 @@ export type BoothRow = {
 export type BoothQrInfo = {
   qrId: string;
   qrUrl: string;
-};
-
-export type CreateBoothPersistInput = {
-  ownerUserId: string;
-  eventId: string;
-  boothName?: string;
-  description?: string;
-  qrId: string;
-  qrUrl: string;
-  scanCount: number;
-  hasVoiceNote: boolean;
-  sheetRowNumber: number;
 };

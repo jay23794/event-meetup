@@ -36,18 +36,18 @@ export class BoothController {
       return res.status(401).json(ApiResponse.error('Unauthorized'));
     }
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-    const cursor = req.query.cursor ? parseInt(req.query.cursor as string, 10) : undefined;
+    const cursor = req.query.cursor ? String(req.query.cursor) : undefined;
     const result = await this.service.listBooths(eventId, userId, { limit, cursor });
     res.status(200).json(ApiResponse.success(result, 'Booths listed'));
   });
 
   getSingleBooth = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { eventId, rowNumber } = req.params as { eventId?: string; rowNumber?: string };
+    const { eventId, boothId } = req.params as { eventId?: string; boothId?: string };
     const userId = req.user?.id || '';
-    if (!req.user?.id || !eventId || !rowNumber) {
+    if (!req.user?.id || !eventId || !boothId) {
       return res.status(401).json(ApiResponse.error('Unauthorized'));
     }
-    const result = await this.service.getSingleBooth(eventId, userId, parseInt(rowNumber, 10));
+    const result = await this.service.getSingleBooth(eventId, userId, boothId);
     res.status(200).json(ApiResponse.success(result, 'Booth retrieved'));
   });
 }

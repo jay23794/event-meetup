@@ -20,7 +20,7 @@ router.use(authMiddleware);
  *     tags:
  *       - Exhibitor Booths
  *     summary: Create booth with extracted documents (optimized single call)
- *     description: "Single API call to create booth + process extracted documents. Handles Anthropic structuring, MongoDB persistence, and Google Sheets sync in one atomic transaction."
+ *     description: "Single API call to create booth + process extracted documents. Handles Anthropic structuring and MongoDB persistence."
  *     parameters:
  *       - in: path
  *         name: eventId

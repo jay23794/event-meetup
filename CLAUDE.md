@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Meet Sync** is a production-ready Node.js + TypeScript backend for event management with Google Sheets integration. It handles booth management at events with OCR scanning and voice note capabilities.
+**Meet Sync** is a production-ready Node.js + TypeScript backend for event management. It handles booth management at events with OCR scanning and voice note capabilities. All structured data is stored in MongoDB; Google Drive is used for file storage (booth images, exhibitor documents).
 
 - **Language**: TypeScript (strict mode)
 - **Runtime**: Node.js 20+
@@ -34,7 +34,7 @@ Defined in `src/config/env.ts` with Zod validation. All required; no defaults fo
 - `NODE_ENV`, `PORT`
 - `MONGODB_URI` - Must be valid MongoDB connection string
 - `JWT_SECRET` (min 32 chars), `JWT_EXPIRES_IN`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` - OAuth2 credentials with scopes: `drive.file`, `spreadsheets`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` - OAuth2 credentials with scope: `drive.file`
 - `ANTHROPIC_API_KEY`
 - `LOG_LEVEL` - debug/info/warn/error
 
@@ -95,15 +95,16 @@ src/features/{feature}/
 ## Google Integration
 
 ### Architecture
-Three client classes in `src/shared/google/`:
+Two client classes in `src/shared/google/`:
 1. **oauth.client.ts** - Creates OAuth2Client from user's refresh token; used to verify ID token
-2. **sheets.client.ts** - Append/read Google Sheets operations
-3. **drive.client.ts** - File creation in user's Drive (available for future use)
+2. **drive.client.ts** - File creation, permissioning, and sharing in user's Drive
+
+Google Drive is the only Google API used by the app — for storing booth/document files and sharing public exhibitor documents with visitors at check-in time. All structured data (booths, scans, check-ins, extractions) lives in MongoDB.
 
 ### Sign-In Flow
 1. User visits `/auth.html` → clicks "Sign in with Google"
 2. Redirects to `/auth/google` → Google OAuth consent screen
-3. User grants permissions (userinfo.profile, userinfo.email, drive.file, spreadsheets)
+3. User grants permissions (userinfo.profile, userinfo.email, drive.file)
 4. Google redirects to `/auth/google/callback?code=...`
 5. Server exchanges code for tokens
 6. ID token decoded with `verifyIdToken()` to extract user info
@@ -111,28 +112,16 @@ Three client classes in `src/shared/google/`:
 8. Google refresh token saved to User.googleRefreshToken
 9. JWT generated and returned to client
 
-### Lazy Sheet Creation Pattern
-Sheets are created on-demand when first needed (on first booth scan), not on event creation:
-1. Event created → saved metadata, `sheetCreated: false`
-2. First booth created → calls `EventService.ensureSheetCreated(eventId, userId)`
-3. Check `event.sheetCreated` flag
-4. If false: create sheet "{eventName} - Booth Log", add headers, set flag to true, save sheetId/sheetUrl
-5. Append booth data to sheet
-6. Subsequent booths skip creation check and append directly
-
-This pattern reduces API calls and avoids empty Google Sheets.
+### Lazy Drive Folder Creation
+The user's MeetSync root folder is created on first sign-in. Per-event folders (event folder + booth-images folder) are created lazily by `EventService.createEvent` / `ensureEventFolders` — only when the user has a refresh token + root folder set. Drive setup is best-effort and does not block event creation.
 
 ### Key Pattern
-Services call `createOAuthClient(user.googleRefreshToken)` → pass to `SheetsClient` → use `.spreadsheets.values.append()` etc.
-
-- Refresh token stored in User.googleRefreshToken (select: false for security)
-- Sheets titled "{eventName} - Booth Log" with predefined header row
-- All Sheets operations happen in service layer; controllers never call APIs directly
+Services call `createOAuthClient(user.googleRefreshToken)` → pass to `DriveClient` / `DriveService`. Refresh token stored in `User.googleRefreshToken` (select: false). All Drive operations happen in the service layer.
 
 ### Error Cases
 - No refresh token: 412 Precondition Failed ("Reconnect Google account")
-- Token expired (invalid_grant): 502 Service Unavailable
-- Other API errors: 502 Service Unavailable
+- Token expired (invalid_grant): 412 (auth expired) or 502 (downstream Drive call failed)
+- Other Drive errors: 502 Service Unavailable
 
 ## Database Models
 
@@ -151,40 +140,52 @@ timestamps
 ownerUserId (ref User, indexed)
 name
 startDate, endDate (optional)
-sheetId (string, optional - set on first booth creation)
-sheetUrl (string, optional - set on first booth creation)
-sheetCreated (boolean, default: false - tracks if Google Sheet has been created)
 boothCount (number, default 0, denormalized for fast listing)
+driveRootFolderId, driveEventFolderId, driveImagesFolderId (optional)
 timestamps
 ```
 
-**Note**: Google Sheet is created lazily on first booth scan, not on event creation. This reduces unnecessary API calls and avoids empty sheets.
-
-### Booth
+### Booth (visitor scan log)
 ```
 ownerUserId (ref User, indexed)
 eventId (ref Event, indexed)
-boothName (optional)
-scanCount (number, default 0)
-hasVoiceNote (boolean, default false)
-sheetRowNumber (number)
-timestamps (no updatedAt needed)
+boothName (optional), description (optional)
+qrId (unique, indexed), qrUrl
+scans: [{ rawText, extractedFields: {name, company, title, phone, email, website, linkedin, socialMedia, address}, imageUrl?, driveFileId? }]
+scanCount, hasVoiceNote
+voiceTranscript, voiceDurationSec (optional)
+names[], phones[], emails[], companies[], websites[], linkedinUrls[], socialMediaUrls[], imageUrls[] (denormalized flat arrays)
+timestamps
 ```
 
-**Note**: Booth stores no PII from scans; raw OCR and extracted fields go only to Google Sheet.
+All PII from scans lives in MongoDB on the Booth document — denormalized flat arrays power summary aggregates without per-row $unwind cost.
 
-## Booth Sheet Schema
-One row per booth visit. Columns:
-1. Timestamp
-2. Booth Name
-3. Scan Count
-4. Names (joined with "; ")
-5. Phones (joined)
-6. Emails (joined)
-7. Companies (joined)
-8. Raw OCR JSON (stringified array)
-9. Voice Transcript
-10. Image URLs (joined)
+### ExhibitorBooth
+```
+ownerUserId (ref User, indexed), eventId (ref Event, indexed)
+boothName, description
+qrId (unique, indexed), qrUrl
+documentCount, scanCount
+timestamps
+```
+
+### VisitorCheckIn
+```
+exhibitorBoothId (ref ExhibitorBooth, indexed)
+eventId (ref Event, indexed)
+visitorUserId (ref User, optional — present when scanner was signed in)
+name, email, phone (optional)
+createdAt (no updatedAt)
+```
+Unique index on `(exhibitorBoothId, email)` — duplicate check-ins are detected via `E11000` on insert.
+
+### VisitorScannedBooth
+```
+visitorUserId (ref User, indexed), exhibitorBoothId (ref ExhibitorBooth)
+qrId, boothName, eventName, sharedDocUrls[]
+createdAt
+```
+Unique index on `(visitorUserId, qrId)`. Powers the visitor's "My Scanned Booths" history. Inserts use `updateOne(..., { upsert: true })` to avoid duplicates.
 
 ## API Endpoints
 
@@ -199,7 +200,10 @@ All API routes are prefixed with `/api/v1`. Auth routes also available without p
 - `GET /events` - List user's visitor events (requires JWT)
 - `POST /events` - Create visitor event metadata (requires JWT)
 - `GET /events/:id` - Get visitor event (requires JWT)
-- `POST /events/:eventId/booths` - Create visitor booth entry (requires JWT, triggers sheet creation if first booth)
+- `POST /events/:eventId/booths` - Create visitor booth entry (requires JWT)
+- `GET /events/:eventId/booths` - List booths in event, cursor-paginated by booth id (newest first)
+- `GET /events/:eventId/booths/:boothId` - Get a single booth by Mongo `_id`
+- `GET /events/:eventId/summary` - Aggregate counts (totals, uniques) computed via Mongo aggregate
 
 ### Exhibitor Routes (require JWT)
 - `GET /exhibitor/events` - List user's exhibitor events
@@ -280,34 +284,27 @@ Keep these separate: never merge exhibitor/visitor endpoints, as it risks exposi
 4. Add Swagger annotations to route definitions
 5. Use existing patterns: service calls google APIs, handles auth checks, throws ApiError
 
-### Handling Google API Errors
+### Handling Google Drive API Errors
 ```typescript
 try {
-  // Google API call
+  // Drive API call
 } catch (error) {
   if (error instanceof Error && error.message.includes('invalid_grant')) {
-    throw new ApiError(502, 'Google Sheets unavailable', { code: 'GOOGLE_AUTH_EXPIRED' });
+    throw new ApiError(412, 'Reconnect Google account', { code: 'GOOGLE_AUTH_EXPIRED' });
   }
-  throw new ApiError(502, 'Google Sheets unavailable', { code: 'GOOGLE_API_ERROR' });
+  throw new ApiError(502, 'Google Drive unavailable', { code: 'GOOGLE_API_ERROR' });
 }
 ```
 
-### Lazy Resource Initialization
-For expensive operations (Google Sheets creation), defer until first use:
+### Lazy Drive Folder Initialization
+Per-event Drive folders are created on first use, not eagerly:
 ```typescript
 // In EventService
-async ensureSheetCreated(eventId: string, userId: string) {
+async ensureEventFolders(eventId: string, userId: string) {
   const event = await this.getEvent(eventId, userId);
-  if (event.sheetCreated) return event;
-  
-  // Create sheet only once
-  const { sheetId, sheetUrl } = await sheetsClient.createSheet(...);
-  return this.repository.updateEvent(eventId, { sheetId, sheetUrl, sheetCreated: true });
+  if (event.driveEventFolderId && event.driveImagesFolderId) return event;
+  // create folders, persist ids on the event...
 }
-
-// In BoothService
-const eventWithSheet = await this.eventService.ensureSheetCreated(eventId, userId);
-// Now safe to use eventWithSheet.sheetId
 ```
 
 ### Ownership Checks
@@ -321,10 +318,9 @@ if (resource.ownerUserId.toString() !== userId) throw ApiError.forbidden('...');
 ### Google API Client Pattern
 Isolate Google API operations in `src/shared/google/` clients:
 - **oauth.client.ts**: OAuth2Client creation and ID token verification
-- **sheets.client.ts**: Append/read Google Sheets
-- **drive.client.ts**: File operations in Google Drive
+- **drive.client.ts**: File operations and permissioning in Google Drive
 
-Services call `createOAuthClient(user.googleRefreshToken)` to get an authenticated client, pass to the appropriate Google client, never expose refresh tokens or raw googleapis calls outside the service layer.
+Services call `createOAuthClient(user.googleRefreshToken)` to get an authenticated client, pass to the Drive client, never expose refresh tokens or raw googleapis calls outside the service layer.
 
 ## Deployment
 
@@ -359,6 +355,6 @@ Services call `createOAuthClient(user.googleRefreshToken)` to get an authenticat
 
 ## Known Issues & Workarounds
 
-- **Google API types conflict**: Version mismatch between googleapis and google-auth-library. Workaround: use `auth as any` when passing OAuth2Client to google.sheets/drive methods.
+- **Google API types conflict**: Version mismatch between googleapis and google-auth-library. Workaround: use `auth as any` when passing OAuth2Client to `google.drive(...)` methods.
 - **Frontend npm install**: vite@8 has unmet peer dependencies with @vitejs/plugin-react. Workaround: use `npm install --legacy-peer-deps` in frontend directory.
 - **Vite build output**: Frontend can be built for two targets—embedded with backend (default) or as static site. Use `VITE_BUILD_TARGET=static` env var to change output directory. This is important for Render and other static-site deployments.

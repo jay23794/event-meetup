@@ -66,18 +66,4 @@ export class ExhibitorBoothRepository {
   async incrementScanCount(boothId: string): Promise<void> {
     await ExhibitorBooth.findByIdAndUpdate(boothId, { $inc: { scanCount: 1 } });
   }
-
-  async updateVisitorSheet(
-    boothId: string,
-    data: { visitorSheetId: string; visitorSheetUrl: string; visitorSheetCreated: boolean }
-  ): Promise<IExhibitorBooth | null> {
-    return ExhibitorBooth.findByIdAndUpdate(boothId, data, { new: true });
-  }
-
-  async updateDocExtractSheet(
-    boothId: string,
-    data: { docExtractSheetId: string; docExtractSheetUrl: string; docExtractSheetCreated: boolean }
-  ): Promise<IExhibitorBooth | null> {
-    return ExhibitorBooth.findByIdAndUpdate(boothId, data, { new: true });
-  }
 }

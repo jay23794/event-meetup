@@ -3,11 +3,12 @@ import mongoose from 'mongoose';
 
 export class EventRepository {
   async findEventById(id: string): Promise<IEvent | null> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
     return Event.findById(id);
   }
 
   async findEventsByOwner(ownerUserId: string): Promise<IEvent[]> {
-    return Event.find({ ownerUserId: new mongoose.Types.ObjectId(ownerUserId) });
+    return Event.find({ ownerUserId: new mongoose.Types.ObjectId(ownerUserId) }).sort({ createdAt: -1 });
   }
 
   async createEvent(eventData: {
@@ -15,8 +16,6 @@ export class EventRepository {
     name: string;
     startDate?: Date;
     endDate?: Date;
-    sheetTabName?: string;
-    sheetCreated?: boolean;
   }): Promise<IEvent> {
     const event = new Event({
       ...eventData,
@@ -31,10 +30,6 @@ export class EventRepository {
       name: string;
       startDate: Date;
       endDate: Date;
-      sheetTabName: string;
-      sheetCreated: boolean;
-      docExtractSheetId: string;
-      docExtractSheetUrl: string;
       driveRootFolderId: string;
       driveEventFolderId: string;
       driveImagesFolderId: string;

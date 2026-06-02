@@ -50,12 +50,6 @@ router.use(authMiddleware);
  *                           endDate:
  *                             type: string
  *                             format: date-time
- *                           sheetId:
- *                             type: string
- *                           sheetUrl:
- *                             type: string
- *                           sheetCreated:
- *                             type: boolean
  *                           boothCount:
  *                             type: number
  *                           createdAt:
@@ -75,9 +69,6 @@ router.use(authMiddleware);
  *                         name: "Tech Conference 2026"
  *                         startDate: "2026-06-15T09:00:00Z"
  *                         endDate: "2026-06-17T17:00:00Z"
- *                         sheetId: "1a2b3c4d5e6f7a8b9c0d1e2f"
- *                         sheetUrl: "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7a8b9c0d1e2f"
- *                         sheetCreated: true
  *                         boothCount: 12
  *                         createdAt: "2026-05-01T10:00:00Z"
  *                         updatedAt: "2026-05-07T15:30:00Z"
@@ -86,9 +77,6 @@ router.use(authMiddleware);
  *                         name: "Product Summit 2026"
  *                         startDate: "2026-07-10T09:00:00Z"
  *                         endDate: "2026-07-12T17:00:00Z"
- *                         sheetId: null
- *                         sheetUrl: null
- *                         sheetCreated: false
  *                         boothCount: 0
  *                         createdAt: "2026-05-03T14:20:00Z"
  *                         updatedAt: "2026-05-03T14:20:00Z"
@@ -155,8 +143,6 @@ router.get('/', controller.listEvents);
  *                     endDate:
  *                       type: string
  *                       format: date-time
- *                     sheetCreated:
- *                       type: boolean
  *                     boothCount:
  *                       type: number
  *             examples:
@@ -169,12 +155,9 @@ router.get('/', controller.listEvents);
  *                     name: "Annual Expo 2026"
  *                     startDate: "2026-08-20T09:00:00Z"
  *                     endDate: "2026-08-22T17:00:00Z"
- *                     sheetCreated: false
  *                     boothCount: 0
  *       400:
  *         description: Validation error
- *       412:
- *         description: Google account not connected
  */
 router.post('/', validate(createEventSchema), controller.createEvent);
 
@@ -220,12 +203,6 @@ router.post('/', validate(createEventSchema), controller.createEvent);
  *                     endDate:
  *                       type: string
  *                       format: date-time
- *                     sheetId:
- *                       type: string
- *                     sheetUrl:
- *                       type: string
- *                     sheetCreated:
- *                       type: boolean
  *                     boothCount:
  *                       type: number
  *             examples:
@@ -238,9 +215,6 @@ router.post('/', validate(createEventSchema), controller.createEvent);
  *                     name: "Tech Conference 2026"
  *                     startDate: "2026-06-15T09:00:00Z"
  *                     endDate: "2026-06-17T17:00:00Z"
- *                     sheetId: "1a2b3c4d5e6f7a8b9c0d1e2f"
- *                     sheetUrl: "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7a8b9c0d1e2f"
- *                     sheetCreated: true
  *                     boothCount: 12
  *       404:
  *         description: Event not found

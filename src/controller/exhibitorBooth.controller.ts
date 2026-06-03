@@ -1,99 +1,160 @@
-import { Request, Response } from 'express';
-import { ExhibitorBoothService, exhibitorBoothService } from '@/service/exhibitorBooth.service';
-import { ApiResponse } from '@/utils/ApiResponse';
-import { asyncHandler } from '@/utils/asyncHandler';
-import { ExhibitorDocument } from '@/model/exhibitorDocument.model';
+import { Request, Response } from "express";
+import { exhibitorBoothService } from "../infra/container";
+import { ExhibitorDocument } from "../model/exhibitorDocument.model";
+import { successResponse } from "../utils/ApiResponse";
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: 'admin' | 'user';
-  };
+    user?: {
+        id: string;
+        email: string;
+        name: string;
+        role: "admin" | "user";
+    };
 }
 
-export class ExhibitorBoothController {
-  constructor(private service: ExhibitorBoothService = exhibitorBoothService) {}
-
-  listByEvent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { eventId } = req.params as { eventId?: string };
+export const listByEvent = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    const { eventId } = req.params;
     const userId = req.user?.id;
+
     if (!userId || !eventId) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
+        throw new Error("Unauthorized");
     }
-    const booths = await this.service.listByEvent(userId, eventId);
-    res.status(200).json(ApiResponse.success({ booths }, 'Exhibitor booths listed'));
-  });
 
-  getBoothByQrId = asyncHandler(async (req: Request, res: Response) => {
-    const { qrId } = req.params as { qrId?: string };
+    const booths = await exhibitorBoothService.listByEvent(
+        userId,
+        eventId
+    );
+
+    res.status(200).json(
+        successResponse({ booths })
+    );
+};
+
+export const getBoothByQrId = async (
+    req: Request,
+    res: Response
+) => {
+    const { qrId } = req.params;
+
     if (!qrId) {
-      return res.status(400).json(ApiResponse.error('QR ID is required'));
+        throw new Error("QR ID is required");
     }
-    const booth = await this.service.getBoothByQrId(qrId);
-    res.status(200).json(ApiResponse.success({ booth }, 'Booth retrieved'));
-  });
 
-  checkInVisitor = asyncHandler(async (req: Request, res: Response) => {
-    const { qrId } = req.params as { qrId?: string };
-    const { name, email, phone } = req.body as {
-      name?: string;
-      email?: string;
-      phone?: string;
-    };
+    const booth = await exhibitorBoothService.getBoothByQrId(
+        qrId
+    );
 
-    console.log('[CheckIn-Controller] incoming request', {
-      qrId,
-      hasName: !!name,
-      hasEmail: !!email,
-      hasPhone: !!phone,
-      hasAuthHeader: !!req.headers.authorization,
+    res.status(200).json(
+        successResponse({ booth })
+    );
+};
+
+export const checkInVisitor = async (
+    req: Request,
+    res: Response
+) => {
+    const { qrId } = req.params;
+
+    const { name, email, phone } = req.body;
+
+    console.log("[CheckIn-Controller] incoming request", {
+        qrId,
+        hasName: !!name,
+        hasEmail: !!email,
+        hasPhone: !!phone,
+        hasAuthHeader: !!req.headers.authorization,
     });
 
     if (!qrId || !name || !email) {
-      console.log('[CheckIn-Controller] FAIL: missing fields', { qrId, name, email });
-      return res.status(400).json(
-        ApiResponse.error('QR ID, name, and email are required')
-      );
+        console.log("[CheckIn-Controller] FAIL: missing fields", {
+            qrId,
+            name,
+            email,
+        });
+
+        throw new Error(
+            "QR ID, name, and email are required"
+        );
     }
 
-    const authToken = req.headers.authorization?.replace('Bearer ', '');
-    const result = await this.service.checkInVisitor(qrId, { name, email, phone }, authToken);
+    const authToken =
+        req.headers.authorization?.replace(
+            "Bearer ",
+            ""
+        );
 
-    console.log('[CheckIn-Controller] success response', { alreadyCheckedIn: result.alreadyCheckedIn });
-    res.status(200).json(ApiResponse.success(result, 'Check-in successful'));
-  });
+    const result =
+        await exhibitorBoothService.checkInVisitor(
+            qrId,
+            {
+                name,
+                email,
+                phone,
+            },
+            authToken
+        );
 
-  listPublicDocuments = asyncHandler(async (req: Request, res: Response) => {
-    const { qrId } = req.params as { qrId?: string };
-    if (!qrId) {
-      return res.status(400).json(ApiResponse.error('QR ID is required'));
-    }
-
-    const booth = await this.service.getBoothByQrId(qrId);
-    const documents = await ExhibitorDocument.find({
-      exhibitorBoothId: booth._id,
-      isPublic: true,
-    });
+    console.log(
+        "[CheckIn-Controller] success response",
+        {
+            alreadyCheckedIn:
+                result.alreadyCheckedIn,
+        }
+    );
 
     res.status(200).json(
-      ApiResponse.success({ documents }, 'Public documents retrieved')
+        successResponse(result)
     );
-  });
+};
 
-  createEventWithBoothAndDocuments = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response) => {
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json(ApiResponse.error('Unauthorized'));
-      }
-      const result = await this.service.createEventWithBoothAndDocuments(userId, req.body);
-      res
-        .status(201)
-        .json(ApiResponse.success(result, 'Event, booth and documents created'));
+export const listPublicDocuments = async (
+    req: Request,
+    res: Response
+) => {
+    const { qrId } = req.params;
+
+    if (!qrId) {
+        throw new Error("QR ID is required");
     }
-  );
-}
 
-export const exhibitorBoothController = new ExhibitorBoothController();
+    const booth =
+        await exhibitorBoothService.getBoothByQrId(
+            qrId
+        );
+
+    const documents =
+        await ExhibitorDocument.find({
+            exhibitorBoothId: booth._id,
+            isPublic: true,
+        });
+
+    res.status(200).json(
+        successResponse({
+            documents,
+        })
+    );
+};
+
+export const createEventWithBoothAndDocuments = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    const userId = req.user?.id;
+
+    if (!userId) {
+        throw new Error("Unauthorized");
+    }
+
+    const result =
+        await exhibitorBoothService.createEventWithBoothAndDocuments(
+            userId,
+            req.body
+        );
+
+    res.status(201).json(
+        successResponse(result)
+    );
+};

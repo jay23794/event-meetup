@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { eventController as controller } from '@/controller/event.controller';
-import { exhibitorBoothController as boothController } from '@/controller/exhibitorBooth.controller';
+import { createEventWithBoothAndDocuments } from '@/controller/exhibitorBooth.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import { validate } from '@/middleware/validate.middleware';
 import { createEventWithBoothAndDocumentsSchema } from '@/types/zod/exhibitorBooth.schema';

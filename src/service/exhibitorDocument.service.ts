@@ -5,12 +5,12 @@ import { ListExhibitorDocumentsQuery } from '@/types/zod/exhibitorDocument.schem
 
 export class ExhibitorDocumentService {
   constructor(
-    private repository: ExhibitorDocumentRepository = exhibitorDocumentRepository,
-    private boothRepository: ExhibitorBoothRepository = exhibitorBoothRepository
+    private _repository: ExhibitorDocumentRepository,
+    private _boothRepository: ExhibitorBoothRepository = exhibitorBoothRepository
   ) {}
 
   private async assertBoothOwnership(userId: string, boothId: string) {
-    const booth = await this.boothRepository.findById(boothId);
+    const booth = await this._boothRepository.findById(boothId);
     if (!booth) {
       throw ApiError.notFound('Exhibitor booth not found');
     }
@@ -22,8 +22,8 @@ export class ExhibitorDocumentService {
 
   async listByBooth(userId: string, boothId: string, query: ListExhibitorDocumentsQuery = {}) {
     await this.assertBoothOwnership(userId, boothId);
-    return this.repository.listByBooth(boothId, query.fileType);
+    return this._repository.listByBooth(boothId, query.fileType);
   }
 }
 
-export const exhibitorDocumentService = new ExhibitorDocumentService();
+

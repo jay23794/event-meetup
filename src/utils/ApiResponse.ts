@@ -19,4 +19,11 @@ export class ApiResponse {
       message,
     };
   }
+  
 }
+
+export const successResponse = <T>(data: T, message = 'Success'): ApiResponseBody<T> => ({
+  success: true,
+  message,
+  data,
+});

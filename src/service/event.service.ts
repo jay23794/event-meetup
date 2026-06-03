@@ -5,14 +5,14 @@ import { CreateEventInput } from '@/types/zod/event.schema';
 import { DriveService } from '@/service/drive.service';
 
 export class EventService {
-  constructor(private repository: EventRepository = eventRepository) {}
+  constructor(private _repository: EventRepository) {}
 
   async listEvents(userId: string) {
-    return this.repository.findEventsByOwner(userId);
+    return this._repository.findEventsByOwner(userId);
   }
 
   async createEvent(userId: string, data: CreateEventInput) {
-    const event = await this.repository.createEvent({
+    const event = await this._repository.createEvent({
       ownerUserId: userId,
       name: data.name,
       startDate: data.startDate ? new Date(data.startDate) : undefined,
@@ -34,7 +34,7 @@ export class EventService {
 
         const boothFolderId = await driveService.ensureBoothFolder(oauthClient, eventFolderId);
 
-        await this.repository.updateEvent(event._id.toString(), {
+        await this._repository.updateEvent(event._id.toString(), {
           driveEventFolderId: eventFolderId,
           driveImagesFolderId: boothFolderId,
         });
@@ -47,4 +47,4 @@ export class EventService {
   }
 }
 
-export const eventService = new EventService();
+

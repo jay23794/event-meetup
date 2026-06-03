@@ -11,20 +11,20 @@ export interface GoogleUserInfo {
 }
 
 export class AuthService {
-  constructor(private repository: AuthRepository = authRepository) {}
+  constructor(private _repository: AuthRepository) {}
 
   async googleSignIn(googleUserInfo: GoogleUserInfo, refreshToken: string) {
-    let user = await this.repository.findUserByEmail(googleUserInfo.email);
+    let user = await this._repository.findUserByEmail(googleUserInfo.email);
 
     if (!user) {
-      user = await this.repository.createUser({
+      user = await this._repository.createUser({
         email: googleUserInfo.email,
         name: googleUserInfo.name,
         password: Math.random().toString(36).slice(2),
       });
     }
 
-    await this.repository.updateUser(user._id.toString(), {
+    await this._repository.updateUser(user._id.toString(), {
       googleRefreshToken: refreshToken,
     });
 
@@ -37,7 +37,7 @@ export class AuthService {
       );
 
       if (meetSyncFolderId !== user.meetSyncRootFolderId) {
-        await this.repository.updateUser(user._id.toString(), {
+        await this._repository.updateUser(user._id.toString(), {
           meetSyncRootFolderId: meetSyncFolderId,
         });
       }
@@ -62,4 +62,4 @@ export class AuthService {
   }
 }
 
-export const authService = new AuthService();
+

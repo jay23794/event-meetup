@@ -29,26 +29,26 @@ const generateQrId = customAlphabet(
 
 export class ExhibitorBoothService {
   constructor(
-    private repository: ExhibitorBoothRepository = exhibitorBoothRepository,
-    private eventRepository: EventRepository = eventRepository,
-    private eventService: EventService = eventService,
-    private authRepository: AuthRepository = authRepository,
-    private docRepository: ExhibitorDocumentRepository = exhibitorDocumentRepository
+    private _repository: ExhibitorBoothRepository,
+    private _eventRepository: EventRepository ,
+    private _eventService: EventService ,
+    private _authRepository: AuthRepository,
+    private _docRepository: ExhibitorDocumentRepository 
   ) {}
 
   async listByEvent(userId: string, eventId: string) {
-    const event = await this.eventRepository.findEventById(eventId);
+    const event = await this._eventRepository.findEventById(eventId);
     if (!event) {
       throw ApiError.notFound('Event not found');
     }
     if (event.ownerUserId.toString() !== userId) {
       throw ApiError.forbidden('You do not have access to this event');
     }
-    return this.repository.listByEvent(eventId);
+    return this._repository.listByEvent(eventId);
   }
 
   async getBoothByQrId(qrId: string) {
-    const booth = await this.repository.findByQrId(qrId);
+    const booth = await this._repository.findByQrId(qrId);
     if (!booth) {
       throw ApiError.notFound('Booth not found');
     }
@@ -60,17 +60,17 @@ export class ExhibitorBoothService {
     visitorData: { name: string; email: string; phone?: string },
     authToken?: string
   ): Promise<{ alreadyCheckedIn: boolean; booth: any }> {
-    const booth = await this.repository.findByQrId(qrId);
+    const booth = await this._repository.findByQrId(qrId);
     if (!booth) {
       throw ApiError.notFound('Booth not found');
     }
 
-    const event = await this.eventRepository.findEventById(booth.eventId.toString());
+    const event = await this._eventRepository.findEventById(booth.eventId.toString());
     if (!event) {
       throw ApiError.notFound('Event not found');
     }
 
-    const exhibitor = await this.authRepository.findUserByIdWithRefreshToken(
+    const exhibitor = await this._authRepository.findUserByIdWithRefreshToken(
       booth.ownerUserId.toString()
     );
     if (!exhibitor) {
@@ -99,7 +99,7 @@ export class ExhibitorBoothService {
         email: visitorData.email,
         phone: visitorData.phone,
       });
-      await this.repository.incrementScanCount(booth._id.toString());
+      await this._repository.incrementScanCount(booth._id.toString());
     } catch (error: any) {
       if (error?.code === 11000) {
         alreadyCheckedIn = true;
@@ -394,7 +394,7 @@ export class ExhibitorBoothService {
       }>;
     }
   ) {
-    const event = await this.eventRepository.findEventById(eventId);
+    const event = await this._eventRepository.findEventById(eventId);
     if (!event) {
       throw ApiError.notFound('Event not found');
     }
@@ -405,7 +405,7 @@ export class ExhibitorBoothService {
     const qrId = generateQrId();
     const qrUrl = `${config.PUBLIC_APP_URL}/exhibitor/${qrId}`;
 
-    const booth = await this.repository.create({
+    const booth = await this._repository.create({
       ownerUserId: userId,
       eventId,
       boothName: payload.boothName,
@@ -448,7 +448,7 @@ export class ExhibitorBoothService {
         const cleanText = textContent.text.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleanText);
 
-        const createdDoc = await this.docRepository.create({
+        const createdDoc = await this._docRepository.create({
           ownerUserId: userId,
           exhibitorBoothId: booth._id.toString(),
           eventId,
@@ -476,7 +476,7 @@ export class ExhibitorBoothService {
           isPublic: doc.isPublic ?? true,
         });
 
-        await this.repository.incrementDocumentCount(booth._id.toString());
+        await this._repository.incrementDocumentCount(booth._id.toString());
 
         processedDocs.push({
           id: createdDoc._id,
@@ -514,7 +514,7 @@ export class ExhibitorBoothService {
     userId: string,
     payload: CreateEventWithBoothAndDocumentsInput
   ) {
-    const event = await this.eventService.createEvent(userId, {
+    const event = await this._eventService.createEvent(userId, {
       name: payload.eventName,
       startDate: payload.startDate,
       endDate: payload.endDate,
@@ -540,4 +540,3 @@ export class ExhibitorBoothService {
   }
 }
 
-export const exhibitorBoothService = new ExhibitorBoothService();

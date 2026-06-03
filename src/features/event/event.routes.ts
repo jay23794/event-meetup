@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { EventController } from '../event/event.controller';
+import { EventController } from './event.controller';
 
 import { authMiddleware } from '@/shared/middleware/auth.middleware';
 import { validate } from '@/shared/middleware/validate.middleware';

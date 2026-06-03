@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import { EventService, eventService } from '@/service/event.service';
-import { ApiResponse } from '@/utils/ApiResponse';
+import { eventService } from '@/service/event.service';
+import { ApiError } from '@/errors/ApiError';
+import { successResponse } from '@/utils/ApiResponse';
 import { asyncHandler } from '@/utils/asyncHandler';
 
 export interface AuthenticatedRequest extends Request {
@@ -13,15 +14,11 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export class EventController {
-  constructor(private service: EventService = eventService) {}
-
   listEvents = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id || '';
-    if (!req.user?.id) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
-    }
-    const events = await this.service.listEvents(userId);
-    res.status(200).json(ApiResponse.success({ events }, 'Events listed'));
+    const userId = req.user?.id;
+    if (!userId) throw ApiError.unauthorized();
+    const events = await eventService.listEvents(userId);
+    res.status(200).json(successResponse({ events }, 'Events listed'));
   });
 }
 

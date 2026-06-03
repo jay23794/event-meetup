@@ -1,11 +1,11 @@
 import { EventRepository, eventRepository } from '@/repository/event.repository';
-import { User } from '@/model/auth.model';
+import { authRepository } from '@/repository/auth.repository';
 import { createOAuthClient } from '@/libs/oauth.client';
 import { CreateEventInput } from '@/types/zod/event.schema';
 import { DriveService } from '@/service/drive.service';
 
 export class EventService {
-  constructor(private _repository: EventRepository) {}
+  constructor(private _repository: EventRepository = eventRepository) {}
 
   async listEvents(userId: string) {
     return this._repository.findEventsByOwner(userId);
@@ -20,7 +20,7 @@ export class EventService {
     });
 
     try {
-      const user = await User.findById(userId).select('+googleRefreshToken meetSyncRootFolderId');
+      const user = await authRepository.findUserByIdWithRefreshTokenAndRoot(userId);
       if (user?.googleRefreshToken && user.meetSyncRootFolderId) {
         const oauthClient = createOAuthClient(user.googleRefreshToken);
         const driveService = new DriveService(oauthClient);
@@ -47,4 +47,4 @@ export class EventService {
   }
 }
 
-
+export const eventService = new EventService();

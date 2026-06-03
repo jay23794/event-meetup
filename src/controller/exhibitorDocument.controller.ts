@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import { ExhibitorDocumentService, exhibitorDocumentService } from '@/service/exhibitorDocument.service';
-import { ApiResponse } from '@/utils/ApiResponse';
+import { z } from 'zod';
+import { exhibitorDocumentService } from '@/service/exhibitorDocument.service';
+import { ApiError } from '@/errors/ApiError';
+import { successResponse } from '@/utils/ApiResponse';
 import { asyncHandler } from '@/utils/asyncHandler';
 
 export interface AuthenticatedRequest extends Request {
@@ -12,18 +14,22 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-export class ExhibitorDocumentController {
-  constructor(private service: ExhibitorDocumentService = exhibitorDocumentService) {}
+const paramsSchema = z.object({
+  boothId: z.string().min(1, 'boothId is required'),
+});
 
+const querySchema = z.object({
+  fileType: z.enum(['card', 'brochure']).optional(),
+});
+
+export class ExhibitorDocumentController {
   listByBooth = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { boothId } = req.params as { boothId?: string };
     const userId = req.user?.id;
-    if (!userId || !boothId) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
-    }
-    const fileType = req.query.fileType as 'card' | 'brochure' | undefined;
-    const documents = await this.service.listByBooth(userId, boothId, { fileType });
-    res.status(200).json(ApiResponse.success({ documents }, 'Exhibitor documents listed'));
+    if (!userId) throw ApiError.unauthorized();
+    const { boothId } = paramsSchema.parse(req.params);
+    const query = querySchema.parse(req.query);
+    const documents = await exhibitorDocumentService.listByBooth(userId, boothId, query);
+    res.status(200).json(successResponse({ documents }, 'Exhibitor documents listed'));
   });
 }
 

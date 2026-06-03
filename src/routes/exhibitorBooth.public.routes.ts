@@ -1,15 +1,7 @@
 import { Router } from 'express';
 import { exhibitorBoothController as controller } from '@/controller/exhibitorBooth.controller';
-import { validate } from '@/middleware/validate.middleware';
-import { z } from 'zod';
 
 const router = Router();
-
-const checkInSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  phone: z.string().optional(),
-});
 
 /**
  * @swagger
@@ -84,6 +76,6 @@ router.get('/:qrId/documents', controller.listPublicDocuments);
  *       200:
  *         description: Check-in successful
  */
-router.post('/:qrId/checkin', validate(checkInSchema), controller.checkInVisitor);
+router.post('/:qrId/checkin', controller.checkInVisitor);
 
 export default router;

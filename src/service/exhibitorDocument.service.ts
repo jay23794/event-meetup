@@ -26,4 +26,6 @@ export class ExhibitorDocumentService {
   }
 }
 
+export const exhibitorDocumentService = new ExhibitorDocumentService(exhibitorDocumentRepository);
+
 

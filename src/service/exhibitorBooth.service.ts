@@ -7,7 +7,10 @@ import { VisitorScannedBooth } from '@/model/visitorScannedBooth.model';
 import { EventRepository, eventRepository } from '@/repository/event.repository';
 import { EventService, eventService } from '@/service/event.service';
 import { AuthRepository, authRepository } from '@/repository/auth.repository';
-import { ExhibitorDocumentRepository, exhibitorDocumentRepository } from '@/repository/exhibitorDocument.repository';
+import {
+  ExhibitorDocumentRepository,
+  exhibitorDocumentRepository,
+} from '@/repository/exhibitorDocument.repository';
 import { ExhibitorDocument } from '@/model/exhibitorDocument.model';
 import { ApiError } from '@/errors/ApiError';
 import { config } from '@/config/env';
@@ -29,11 +32,11 @@ const generateQrId = customAlphabet(
 
 export class ExhibitorBoothService {
   constructor(
-    private _repository: ExhibitorBoothRepository,
-    private _eventRepository: EventRepository ,
-    private _eventService: EventService ,
-    private _authRepository: AuthRepository,
-    private _docRepository: ExhibitorDocumentRepository 
+    private _repository: ExhibitorBoothRepository = exhibitorBoothRepository,
+    private _eventRepository: EventRepository = eventRepository,
+    private _eventService: EventService = eventService,
+    private _authRepository: AuthRepository = authRepository,
+    private _docRepository: ExhibitorDocumentRepository = exhibitorDocumentRepository
   ) {}
 
   async listByEvent(userId: string, eventId: string) {
@@ -53,6 +56,11 @@ export class ExhibitorBoothService {
       throw ApiError.notFound('Booth not found');
     }
     return booth;
+  }
+
+  async listPublicDocumentsByQrId(qrId: string) {
+    const booth = await this.getBoothByQrId(qrId);
+    return this._docRepository.listPublicByBoothId(booth._id);
   }
 
   async checkInVisitor(
@@ -539,4 +547,6 @@ export class ExhibitorBoothService {
     };
   }
 }
+
+export const exhibitorBoothService = new ExhibitorBoothService();
 

@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { EventController } from '../event/event.controller';
-import { ExhibitorBoothController } from '../exhibitorBooth/exhibitorBooth.controller';
+
 import { authMiddleware } from '@/shared/middleware/auth.middleware';
 import { validate } from '@/shared/middleware/validate.middleware';
 import { createEventWithBoothAndDocumentsSchema } from '../exhibitorBooth/exhibitorBooth.schema';
+import { ExhibitorBoothController } from '../exhibitorBooth/exhibitorBooth.controller';
+
 
 const router = Router();
 const controller = new EventController();

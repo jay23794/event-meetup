@@ -2,6 +2,7 @@ import { AppError } from './app.errors';
 
 export { AppError } from './app.errors';
 export { ZodValidationError, type ZodIssue } from './zod.error';
+export { handleMongooseError } from './mongoose.error';
 
 export class BadRequestError extends AppError {
   public readonly statusCode = 400;

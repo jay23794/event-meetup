@@ -36,11 +36,12 @@ export class AuthService {
     }
   }
 
-  loginWithGoogle(): void {
+  loginWithGoogle(returnUrl?: string): void {
     const origin = window.location.origin;
     const apiBase = environment.apiUrl.replace(/\/api\/v1\/?$/, '');
-    const url = `${apiBase}/auth/google?origin=${encodeURIComponent(origin)}`;
-    window.location.href = url;
+    const params = new URLSearchParams({ origin });
+    if (returnUrl) params.set('returnUrl', returnUrl);
+    window.location.href = `${apiBase}/auth/google?${params.toString()}`;
   }
 
   handleOAuthCallback(token: string, email: string, name: string, returnUrl?: string): void {

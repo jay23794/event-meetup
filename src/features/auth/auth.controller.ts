@@ -41,9 +41,13 @@ export class AuthController {
     );
 
     const origin = (req.query.origin as string) || '';
-    const state = origin
-      ? Buffer.from(JSON.stringify({ origin })).toString('base64url')
-      : undefined;
+    const returnUrl = (req.query.returnUrl as string) || '';
+    const state =
+      origin || returnUrl
+        ? Buffer.from(JSON.stringify({ origin, returnUrl })).toString(
+            'base64url'
+          )
+        : undefined;
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -59,26 +63,41 @@ export class AuthController {
     res.redirect(authUrl);
   });
 
-  private resolveFrontendUrl(req: Request): string {
+  private decodeState(
+    req: Request
+  ): { origin?: string; returnUrl?: string } {
     const stateParam = req.query.state as string | undefined;
-    if (stateParam) {
-      try {
-        const decoded = JSON.parse(
-          Buffer.from(stateParam, 'base64url').toString('utf8')
-        );
-        if (decoded?.origin && typeof decoded.origin === 'string') {
-          return decoded.origin;
-        }
-      } catch {
-        // fall through to defaults
-      }
+    if (!stateParam) return {};
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(stateParam, 'base64url').toString('utf8')
+      );
+      return {
+        origin:
+          typeof decoded?.origin === 'string' ? decoded.origin : undefined,
+        returnUrl:
+          typeof decoded?.returnUrl === 'string'
+            ? decoded.returnUrl
+            : undefined,
+      };
+    } catch {
+      return {};
     }
+  }
+
+  private resolveFrontendUrl(req: Request): string {
+    const { origin } = this.decodeState(req);
+    if (origin) return origin;
     return process.env.FRONTEND_URL || 'http://localhost:5173';
   }
 
   googleAuthCallback = asyncHandler(async (req: Request, res: Response) => {
     const { code } = req.query;
     const frontendUrl = this.resolveFrontendUrl(req);
+    const { returnUrl } = this.decodeState(req);
+    const returnUrlSuffix = returnUrl
+      ? `&returnUrl=${encodeURIComponent(returnUrl)}`
+      : '';
 
     if (!code) {
       return res.redirect(`${frontendUrl}/signin?error=No authorization code`);
@@ -120,7 +139,7 @@ export class AuthController {
       const result = await this.service.googleSignIn(googleUserInfo, refreshToken);
 
       return res.redirect(
-        `${frontendUrl}/signin?jwt=${encodeURIComponent(result.token)}&email=${encodeURIComponent(result.user.email)}&name=${encodeURIComponent(result.user.name)}`
+        `${frontendUrl}/signin?jwt=${encodeURIComponent(result.token)}&email=${encodeURIComponent(result.user.email)}&name=${encodeURIComponent(result.user.name)}${returnUrlSuffix}`
       );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';

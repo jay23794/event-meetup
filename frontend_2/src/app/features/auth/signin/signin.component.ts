@@ -54,6 +54,8 @@ export class SignInComponent implements OnInit {
   onGoogleSignIn(): void {
     this.errorMessage.set(null);
     this.loading.set(true);
-    this.authService.loginWithGoogle();
+    const returnUrl =
+      this.route.snapshot.queryParamMap.get('returnUrl') ?? undefined;
+    this.authService.loginWithGoogle(returnUrl);
   }
 }

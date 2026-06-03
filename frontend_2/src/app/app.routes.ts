@@ -40,6 +40,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'visitor/check-in/:qrId',
+        loadComponent: () =>
+          import('./features/visitor/check-in/check-in.component').then(
+            (m) => m.CheckInComponent,
+          ),
+      },
+      {
         path: 'recent-activity',
         loadComponent: () =>
           import('./features/recent-activity/recent-activity.component').then(
@@ -47,6 +54,11 @@ export const routes: Routes = [
           ),
       },
     ],
+  },
+  {
+    path: 'exhibitor/:qrId',
+    redirectTo: ({ params }) =>
+      `/home/visitor/check-in/${params['qrId']}`,
   },
   {
     path: '',

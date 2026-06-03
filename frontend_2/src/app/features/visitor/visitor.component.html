@@ -1,0 +1,180 @@
+<section class="flex flex-col gap-6">
+  <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex flex-col gap-1">
+      <a
+        routerLink="/home"
+        class="text-sm font-medium text-primary-700 hover:underline"
+      >
+        ← Back to Home
+      </a>
+      <h1
+        class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl"
+      >
+        Visited Booths
+      </h1>
+      <p class="text-sm text-slate-600">
+        Booths you've scanned, with any documents shared at check-in.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="load()"
+      [disabled]="loading()"
+      class="inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        [class.animate-spin]="loading()"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M16.023 9.348h4.992V4.356M2.985 19.644v-4.992h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.183"
+        />
+      </svg>
+      Refresh
+    </button>
+  </header>
+
+  @if (loading()) {
+    <ul class="flex flex-col gap-3">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <li
+          class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
+        >
+          <div class="h-10 w-10 animate-pulse rounded-xl bg-slate-200"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-3 w-2/3 animate-pulse rounded bg-slate-200"></div>
+            <div class="h-3 w-1/3 animate-pulse rounded bg-slate-100"></div>
+          </div>
+        </li>
+      }
+    </ul>
+  } @else if (error()) {
+    <div
+      class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+      role="alert"
+    >
+      {{ error() }}
+    </div>
+  } @else if (booths().length === 0) {
+    <div
+      class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500"
+    >
+      <p class="font-medium text-slate-700">No visited booths yet</p>
+      <p class="mt-1 text-sm">
+        Scan a booth QR code to add it to your visit history.
+      </p>
+    </div>
+  } @else {
+    <p class="text-xs font-medium uppercase tracking-wide text-slate-500">
+      {{ totalCount() }} booth{{ totalCount() === 1 ? '' : 's' }}
+    </p>
+    <ul class="flex flex-col gap-3">
+      @for (booth of booths(); track booth.qrId) {
+        <li
+          class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+        >
+          <div class="flex items-start gap-4 p-4 sm:p-5">
+            <span
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-semibold text-white shadow-md"
+              aria-hidden="true"
+            >
+              V
+            </span>
+            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <p
+                class="truncate text-sm font-medium text-slate-900 sm:text-base"
+              >
+                {{ booth.boothName }}
+              </p>
+              <p class="truncate text-xs text-slate-500 sm:text-sm">
+                {{ booth.eventName || 'Booth scan' }}
+              </p>
+              @if (booth.sharedDocuments.length > 0) {
+                <button
+                  type="button"
+                  (click)="toggleDocuments(booth.qrId)"
+                  [attr.aria-expanded]="isExpanded(booth.qrId)"
+                  [attr.aria-controls]="'docs-' + booth.qrId"
+                  class="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-primary-700 hover:underline"
+                >
+                  {{ isExpanded(booth.qrId) ? 'Hide' : 'View' }}
+                  {{ booth.sharedDocuments.length }} shared document{{
+                    booth.sharedDocuments.length === 1 ? '' : 's'
+                  }}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    class="h-3.5 w-3.5 transition-transform"
+                    [class.rotate-180]="isExpanded(booth.qrId)"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </button>
+              }
+            </div>
+            <time
+              class="shrink-0 text-xs text-slate-400 sm:text-sm"
+              [attr.datetime]="booth.timestamp"
+              [title]="absoluteTime(booth.timestamp)"
+            >
+              {{ relativeTime(booth.timestamp) }}
+            </time>
+          </div>
+
+          @if (
+            isExpanded(booth.qrId) && booth.sharedDocuments.length > 0
+          ) {
+            <div
+              [id]="'docs-' + booth.qrId"
+              class="border-t border-slate-100 bg-slate-50 px-4 py-3 sm:px-5"
+            >
+              <ul class="flex flex-col gap-1.5">
+                @for (doc of booth.sharedDocuments; track doc.url) {
+                  <li>
+                    <a
+                      [href]="doc.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline sm:text-sm"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-4 w-4 shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                        />
+                      </svg>
+                      <span class="truncate">
+                        {{ fileNameFor(doc.url, doc.fileName) }}
+                      </span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

@@ -2,7 +2,7 @@ import { customAlphabet } from 'nanoid';
 import { google } from 'googleapis';
 import mongoose from 'mongoose';
 import { ExhibitorBoothRepository } from './exhibitorBooth.repository';
-import { VisitorCheckIn } from './visitorCheckIn.model';
+import { VisitorCheckIn } from '@/features/visitor/visitorCheckIn.model';
 import { VisitorScannedBooth } from '@/features/visitor/visitorScannedBooth.model';
 import { EventRepository } from '@/features/event/event.repository';
 import { EventService } from '@/features/event/event.service';

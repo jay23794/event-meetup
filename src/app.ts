@@ -13,7 +13,7 @@ import { globalLimiter } from './shared/middleware/rateLimit.middleware';
 import { errorMiddleware } from './shared/middleware/error.middleware';
 import { ApiResponse } from './shared/utils/ApiResponse';
 import authRoutes from './features/auth/auth.routes';
-import exhibitorEventRoutes from './features/exhibitorBooth/exhibitorEvent.routes';
+import exhibitorEventRoutes from './features/exhibitorEvent/exhibitorEvent.routes';
 import exhibitorBoothRoutes from './features/exhibitorBooth/exhibitorBooth.routes';
 import exhibitorBoothPublicRoutes from './features/exhibitorBooth/exhibitorBooth.public.routes';
 import exhibitorDocumentRoutes from './features/exhibitorDocument/exhibitorDocument.routes';

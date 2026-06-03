@@ -12,13 +12,6 @@ const dateTimeOrDateString = z.string().refine(
   'Invalid date format. Use ISO 8601 datetime or date string (YYYY-MM-DD)'
 );
 
-export const createExhibitorBoothSchema = z.object({
-  boothName: z.string().min(1).max(200),
-  description: z.string().min(1).max(5000),
-});
-
-export const updateExhibitorBoothSchema = createExhibitorBoothSchema.partial();
-
 const documentSchema = z.object({
   rawText: z.string().min(1, 'rawText required'),
   fileType: z.enum(['card', 'brochure']),
@@ -45,8 +38,6 @@ export const createEventWithBoothAndDocumentsSchema = z.object({
   documents: z.array(documentSchema).min(1, 'At least one document is required'),
 });
 
-export type CreateExhibitorBoothInput = z.infer<typeof createExhibitorBoothSchema>;
-export type UpdateExhibitorBoothInput = z.infer<typeof updateExhibitorBoothSchema>;
 export type CreateBoothWithDocumentsInput = z.infer<typeof createBoothWithDocumentsSchema>;
 export type CreateEventWithBoothAndDocumentsInput = z.infer<
   typeof createEventWithBoothAndDocumentsSchema

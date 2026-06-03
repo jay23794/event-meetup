@@ -3,7 +3,6 @@ import { EventController } from '../event/event.controller';
 import { ExhibitorBoothController } from '../exhibitorBooth/exhibitorBooth.controller';
 import { authMiddleware } from '@/shared/middleware/auth.middleware';
 import { validate } from '@/shared/middleware/validate.middleware';
-import { createEventSchema } from '../event/event.schema';
 import { createEventWithBoothAndDocumentsSchema } from '../exhibitorBooth/exhibitorBooth.schema';
 
 const router = Router();
@@ -19,7 +18,6 @@ router.use(authMiddleware);
  *     tags:
  *       - Exhibitor Events
  *     summary: List exhibitor's events
- *     description: "List all events owned by the authenticated exhibitor"
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -29,41 +27,6 @@ router.use(authMiddleware);
  *         description: Unauthorized
  */
 router.get('/', controller.listEvents);
-
-/**
- * @swagger
- * /api/v1/exhibitor/events:
- *   post:
- *     tags:
- *       - Exhibitor Events
- *     summary: Create new exhibitor event
- *     description: "Create a new event to set up booth(s) for an exhibition"
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               startDate:
- *                 type: string
- *                 format: date-time
- *               endDate:
- *                 type: string
- *                 format: date-time
- *             required:
- *               - name
- *     responses:
- *       201:
- *         description: Event created
- *       400:
- *         description: Validation error
- */
-router.post('/', validate(createEventSchema), controller.createEvent);
 
 /**
  * @swagger
@@ -103,24 +66,6 @@ router.post('/', validate(createEventSchema), controller.createEvent);
  *                 type: array
  *                 items:
  *                   type: object
- *                   properties:
- *                     rawText:
- *                       type: string
- *                     fileType:
- *                       type: string
- *                       enum: [card, brochure]
- *                     fileName:
- *                       type: string
- *                     driveFileId:
- *                       type: string
- *                     driveFileUrl:
- *                       type: string
- *                     mimeType:
- *                       type: string
- *                     sizeBytes:
- *                       type: number
- *                     isPublic:
- *                       type: boolean
  *     responses:
  *       201:
  *         description: Event, booth and documents created
@@ -136,28 +81,5 @@ router.post(
   validate(createEventWithBoothAndDocumentsSchema),
   boothController.createEventWithBoothAndDocuments
 );
-
-/**
- * @swagger
- * /api/v1/exhibitor/events/{id}:
- *   get:
- *     tags:
- *       - Exhibitor Events
- *     summary: Get exhibitor event by ID
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Event retrieved
- *       404:
- *         description: Event not found
- */
-router.get('/:id', controller.getEvent);
 
 export default router;

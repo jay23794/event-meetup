@@ -5,33 +5,12 @@ import { AuthService } from './auth.service';
 import { ApiResponse } from '@/shared/utils/ApiResponse';
 import { asyncHandler } from '@/shared/utils/asyncHandler';
 
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: 'admin' | 'user';
-  };
-}
-
 export class AuthController {
   private service: AuthService;
 
   constructor() {
     this.service = new AuthService();
   }
-
-  logout = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id || '';
-    await this.service.logout(userId);
-    res.status(200).json(ApiResponse.success(null, 'Logout successful'));
-  });
-
-  googleAccessToken = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id || '';
-    const result = await this.service.getGoogleAccessToken(userId);
-    res.status(200).json(ApiResponse.success(result));
-  });
 
   googleAuth = asyncHandler(async (req: Request, res: Response) => {
     const oauth2Client = new OAuth2Client(

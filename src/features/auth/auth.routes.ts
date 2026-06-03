@@ -1,26 +1,8 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
-import { authMiddleware } from '@/shared/middleware/auth.middleware';
 
 const router = Router();
 const controller = new AuthController();
-
-/**
- * @swagger
- * /auth/logout:
- *   post:
- *     tags:
- *       - Auth
- *     summary: Logout user
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logout successful
- *       401:
- *         description: Unauthorized
- */
-router.post('/logout', authMiddleware, controller.logout);
 
 /**
  * @swagger
@@ -50,32 +32,9 @@ router.get('/google', controller.googleAuth);
  *         required: true
  *         description: Authorization code from Google
  *     responses:
- *       200:
- *         description: Authorization successful, returns refresh token
  *       302:
- *         description: Redirect on error
+ *         description: Redirect to frontend with JWT or error
  */
 router.get('/google/callback', controller.googleAuthCallback);
-
-/**
- * @swagger
- * /auth/google/access-token:
- *   get:
- *     tags:
- *       - Auth
- *     summary: Mint a fresh Google access token from the user's stored refresh token
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Returns a short-lived Google access token
- *       401:
- *         description: Unauthorized
- *       412:
- *         description: Google account not connected or refresh token expired
- *       502:
- *         description: Google authentication unavailable
- */
-router.get('/google/access-token', authMiddleware, controller.googleAccessToken);
 
 export default router;

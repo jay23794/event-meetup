@@ -20,16 +20,6 @@ export class ExhibitorBoothController {
     this.service = new ExhibitorBoothService();
   }
 
-  createBooth = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { eventId } = req.params as { eventId?: string };
-    const userId = req.user?.id;
-    if (!userId || !eventId) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
-    }
-    const booth = await this.service.createBooth(userId, eventId, req.body);
-    res.status(201).json(ApiResponse.success({ booth }, 'Exhibitor booth created'));
-  });
-
   listByEvent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { eventId } = req.params as { eventId?: string };
     const userId = req.user?.id;
@@ -38,26 +28,6 @@ export class ExhibitorBoothController {
     }
     const booths = await this.service.listByEvent(userId, eventId);
     res.status(200).json(ApiResponse.success({ booths }, 'Exhibitor booths listed'));
-  });
-
-  getBooth = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { boothId } = req.params as { boothId?: string };
-    const userId = req.user?.id;
-    if (!userId || !boothId) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
-    }
-    const booth = await this.service.getBooth(userId, boothId);
-    res.status(200).json(ApiResponse.success({ booth }, 'Exhibitor booth retrieved'));
-  });
-
-  updateBooth = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { boothId } = req.params as { boothId?: string };
-    const userId = req.user?.id;
-    if (!userId || !boothId) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
-    }
-    const booth = await this.service.updateBooth(userId, boothId, req.body);
-    res.status(200).json(ApiResponse.success({ booth }, 'Exhibitor booth updated'));
   });
 
   getBoothByQrId = asyncHandler(async (req: Request, res: Response) => {
@@ -114,23 +84,6 @@ export class ExhibitorBoothController {
     res.status(200).json(
       ApiResponse.success({ documents }, 'Public documents retrieved')
     );
-  });
-
-  createBoothWithDocuments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { eventId } = req.params as { eventId?: string };
-    const userId = req.user?.id;
-    console.log('[Controller] createBoothWithDocuments hit:', {
-      eventId,
-      userId,
-      bodyKeys: Object.keys(req.body || {}),
-      hasDocuments: Array.isArray(req.body?.documents),
-      documentsCount: req.body?.documents?.length ?? 0,
-    });
-    if (!userId || !eventId) {
-      return res.status(401).json(ApiResponse.error('Unauthorized'));
-    }
-    const result = await this.service.createBoothWithDocuments(userId, eventId, req.body);
-    res.status(201).json(ApiResponse.success(result, 'Booth created with documents'));
   });
 
   createEventWithBoothAndDocuments = asyncHandler(

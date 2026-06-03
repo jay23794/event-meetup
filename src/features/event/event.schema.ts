@@ -18,11 +18,4 @@ export const createEventSchema = z.object({
   endDate: dateTimeOrDateString.optional(),
 });
 
-export const updateEventSchema = z.object({
-  name: z.string().min(1).optional(),
-  startDate: dateTimeOrDateString.optional(),
-  endDate: dateTimeOrDateString.optional(),
-}).partial();
-
 export type CreateEventInput = z.infer<typeof createEventSchema>;
-export type UpdateEventInput = z.infer<typeof updateEventSchema>;

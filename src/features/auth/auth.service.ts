@@ -1,7 +1,6 @@
 import { AuthRepository } from './auth.repository';
 import { ApiError } from '@/shared/utils/ApiError';
 import { generateToken } from '@/shared/utils/jwt';
-import { RegisterInput, LoginInput } from './auth.schema';
 import { createOAuthClient } from '@/shared/google/oauth.client';
 import { DriveService } from '@/features/drive/drive.service';
 
@@ -16,49 +15,6 @@ export class AuthService {
 
   constructor() {
     this.repository = new AuthRepository();
-  }
-
-  async register(data: RegisterInput) {
-    const existingUser = await this.repository.findUserByEmail(data.email);
-    if (existingUser) {
-      throw ApiError.conflict('User already exists');
-    }
-
-    const user = await this.repository.createUser({
-      email: data.email,
-      password: data.password,
-      name: data.name,
-    });
-
-    const token = generateToken({
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    });
-
-    return { user: { id: user._id, email: user.email, name: user.name }, token };
-  }
-
-  async login(email: string, password: string) {
-    const user = await this.repository.findUserByEmail(email);
-    if (!user) {
-      throw ApiError.unauthorized('Invalid email or password');
-    }
-
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      throw ApiError.unauthorized('Invalid email or password');
-    }
-
-    const token = generateToken({
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    });
-
-    return { user: { id: user._id, email: user.email, name: user.name }, token };
   }
 
   async googleSignIn(googleUserInfo: GoogleUserInfo, refreshToken: string) {
@@ -79,18 +35,17 @@ export class AuthService {
     try {
       const oauthClient = createOAuthClient(refreshToken);
       const driveService = new DriveService(oauthClient);
-      console.log('[Auth] Creating/ensuring MeetSync folder for user:', user.email);
-      const meetSyncFolderId = await driveService.ensureMeetSyncFolder(oauthClient, user.meetSyncRootFolderId);
-      console.log('[Auth] MeetSync folder ID:', meetSyncFolderId);
+      const meetSyncFolderId = await driveService.ensureMeetSyncFolder(
+        oauthClient,
+        user.meetSyncRootFolderId
+      );
 
       if (meetSyncFolderId !== user.meetSyncRootFolderId) {
-        console.log('[Auth] Updating user with new MeetSync folder ID');
         await this.repository.updateUser(user._id.toString(), {
           meetSyncRootFolderId: meetSyncFolderId,
         });
       }
     } catch (error) {
-      console.error('[Auth] Error creating MeetSync folder:', error);
       if (error instanceof ApiError && error.statusCode === 502) {
         throw error;
       }
@@ -108,45 +63,5 @@ export class AuthService {
       user: { id: user._id, email: user.email, name: user.name },
       token,
     };
-  }
-
-  async logout(_userId: string) {
-    return { message: 'Logged out successfully' };
-  }
-
-  async getGoogleAccessToken(userId: string): Promise<{ accessToken: string; expiresAt: number | null }> {
-    const user = await this.repository.findUserByIdWithRefreshToken(userId);
-    if (!user) {
-      throw ApiError.notFound('User not found');
-    }
-    if (!user.googleRefreshToken) {
-      throw new ApiError(412, 'Google account not connected — please reconnect', {
-        code: 'GOOGLE_NOT_CONNECTED',
-      });
-    }
-
-    try {
-      const client = createOAuthClient(user.googleRefreshToken);
-      const tokenResponse = await client.getAccessToken();
-      const accessToken = tokenResponse.token;
-      if (!accessToken) {
-        throw new ApiError(502, 'Failed to obtain Google access token', {
-          code: 'GOOGLE_API_ERROR',
-        });
-      }
-      const expiresAt = client.credentials.expiry_date ?? null;
-      return { accessToken, expiresAt };
-    } catch (error) {
-      if (error instanceof ApiError) throw error;
-      const message = error instanceof Error ? error.message : '';
-      if (message.includes('invalid_grant')) {
-        throw new ApiError(412, 'Google account expired — please reconnect', {
-          code: 'GOOGLE_AUTH_EXPIRED',
-        });
-      }
-      throw new ApiError(502, 'Google authentication unavailable', {
-        code: 'GOOGLE_API_ERROR',
-      });
-    }
   }
 }

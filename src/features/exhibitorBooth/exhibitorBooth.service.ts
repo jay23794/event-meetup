@@ -12,8 +12,6 @@ import { ExhibitorDocument } from '@/features/exhibitorDocument/exhibitorDocumen
 import { ApiError } from '@/shared/utils/ApiError';
 import { config } from '@/config/env';
 import {
-  CreateExhibitorBoothInput,
-  UpdateExhibitorBoothInput,
   CreateBoothWithDocumentsInput,
   CreateEventWithBoothAndDocumentsInput,
 } from './exhibitorBooth.schema';
@@ -22,7 +20,7 @@ import { DriveClient } from '@/shared/google/drive.client';
 import { User } from '@/features/auth/auth.model';
 import { verifyToken } from '@/shared/utils/jwt';
 import { anthropic } from '@/config/anthropic';
-import { DOCUMENT_EXTRACTION_PROMPT } from '@/features/scan/scan.prompt';
+import { DOCUMENT_EXTRACTION_PROMPT } from '@/shared/prompts/documentExtraction.prompt';
 
 const generateQrId = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -42,49 +40,6 @@ export class ExhibitorBoothService {
     this.eventService = new EventService();
     this.authRepository = new AuthRepository();
     this.docRepository = new ExhibitorDocumentRepository();
-  }
-
-  async createBooth(userId: string, eventId: string, payload: CreateExhibitorBoothInput) {
-    const event = await this.eventRepository.findEventById(eventId);
-    if (!event) {
-      throw ApiError.notFound('Event not found');
-    }
-    if (event.ownerUserId.toString() !== userId) {
-      throw ApiError.forbidden('You do not have access to this event');
-    }
-
-    const qrId = generateQrId();
-    const qrUrl = `${config.PUBLIC_APP_URL}/exhibitor/${qrId}`;
-
-    return this.repository.create({
-      ownerUserId: userId,
-      eventId,
-      boothName: payload.boothName,
-      description: payload.description,
-      qrId,
-      qrUrl,
-    });
-  }
-
-  async getBooth(userId: string, boothId: string) {
-    const booth = await this.repository.findById(boothId);
-    if (!booth) {
-      throw ApiError.notFound('Exhibitor booth not found');
-    }
-    if (booth.ownerUserId.toString() !== userId) {
-      throw ApiError.forbidden('You do not have access to this booth');
-    }
-    return booth;
-  }
-
-  async updateBooth(userId: string, boothId: string, payload: UpdateExhibitorBoothInput) {
-    await this.getBooth(userId, boothId);
-
-    const updates: Partial<{ boothName: string; description: string }> = {};
-    if (payload.boothName !== undefined) updates.boothName = payload.boothName;
-    if (payload.description !== undefined) updates.description = payload.description;
-
-    return this.repository.update(boothId, updates);
   }
 
   async listByEvent(userId: string, eventId: string) {

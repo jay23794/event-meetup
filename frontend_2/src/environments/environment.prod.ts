@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.meetsync.com',
+  apiUrl: 'https://api.meetra.bigfynite.com/api/v1',
 };

@@ -23,10 +23,10 @@ import { AuthService } from '@core/services/auth.service';
               class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-bold text-white shadow-md shadow-primary-600/25"
               aria-hidden="true"
             >
-              MS
+              MR
             </span>
             <span class="text-base font-semibold tracking-tight sm:text-lg">
-              Meet Sync
+              Meetra
             </span>
           </a>
 

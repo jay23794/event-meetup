@@ -1,17 +1,41 @@
 <section class="flex flex-col gap-6">
-  <header class="flex flex-col gap-1">
+  <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex flex-col gap-1">
+      <a
+        routerLink="/home"
+        class="text-sm font-medium text-primary-700 hover:underline"
+      >
+        ← Back to Home
+      </a>
+      <h1
+        class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl"
+      >
+        Create Exhibitor Booth
+      </h1>
+      <p class="text-sm text-slate-600">
+        Add your event and booth details to get started.
+      </p>
+    </div>
     <a
-      routerLink="/home"
-      class="text-sm font-medium text-primary-700 hover:underline"
+      routerLink="/home/recent-activity"
+      class="inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:self-auto"
     >
-      ← Back to Home
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+        />
+      </svg>
+      View My Activity
     </a>
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-      Create Exhibitor Booth
-    </h1>
-    <p class="text-sm text-slate-600">
-      Add your event and booth details to get started.
-    </p>
   </header>
 
   <form

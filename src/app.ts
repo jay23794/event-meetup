@@ -7,17 +7,18 @@ import cors from 'cors';
 import compression from 'compression';
 import swaggerUi from 'swagger-ui-express';
 import { nanoid } from 'nanoid';
-import { logger } from './config/logger';
-import { swaggerSpec } from './config/swagger';
-import { globalLimiter } from './shared/middleware/rateLimit.middleware';
-import { errorMiddleware } from './shared/middleware/error.middleware';
-import { ApiResponse } from './shared/utils/ApiResponse';
-import authRoutes from './features/auth/auth.routes';
-import exhibitorEventRoutes from './features/exhibitorEvent/exhibitorEvent.routes';
-import exhibitorBoothRoutes from './features/exhibitorBooth/exhibitorBooth.routes';
-import exhibitorBoothPublicRoutes from './features/exhibitorBooth/exhibitorBooth.public.routes';
-import exhibitorDocumentRoutes from './features/exhibitorDocument/exhibitorDocument.routes';
-import visitorRoutes from './features/visitor/visitor.routes';
+import { logger } from '@/infra/logger';
+import { swaggerSpec } from '@/libs/swagger';
+import { globalLimiter } from '@/middleware/rateLimit.middleware';
+import { errorHandler } from '@/errors/app.error.handler';
+import { NotFoundError } from '@/errors';
+import { ApiResponse } from '@/utils/ApiResponse';
+import authRoutes from '@/routes/auth.routes';
+import exhibitorEventRoutes from '@/routes/exhibitorEvent.routes';
+import exhibitorBoothRoutes from '@/routes/exhibitorBooth.routes';
+import exhibitorBoothPublicRoutes from '@/routes/exhibitorBooth.public.routes';
+import exhibitorDocumentRoutes from '@/routes/exhibitorDocument.routes';
+import visitorRoutes from '@/routes/visitor.routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -118,7 +119,7 @@ app.get(['/privacy-policy', '/terms'], (req: Request, res: Response) => {
   }
 });
 
-// SPA fallback: serve index.html for any non-API routes
+// SPA fallback: serve index.html for any non-API GET routes
 app.get('*', (_req: Request, res: Response) => {
   const indexPath = path.join(__dirname, '../public/index.html');
   if (existsSync(indexPath)) {
@@ -128,6 +129,12 @@ app.get('*', (_req: Request, res: Response) => {
   }
 });
 
-app.use(errorMiddleware);
+// 404 trap — anything that fell through the routes and SPA wildcard
+// (e.g. non-GET requests to unknown paths) is funnelled into the error handler.
+app.use((req, _res, next) => {
+  next(new NotFoundError(`Cannot ${req.method} ${req.path}`));
+});
+
+app.use(errorHandler);
 
 export default app;

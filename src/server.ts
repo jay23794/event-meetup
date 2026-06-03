@@ -1,7 +1,7 @@
-import './config/load-env';
-import { config } from './config/env';
-import { logger } from './config/logger';
-import { connectDB, disconnectDB } from './config/db';
+import '@/config/load-env';
+import { config } from '@/config/env';
+import { logger } from '@/infra/logger';
+import { connectDB, disconnectDB } from '@/infra/db';
 import app from './app';
 
 const startServer = async (): Promise<void> => {

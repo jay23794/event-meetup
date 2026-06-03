@@ -18,6 +18,8 @@ import {
   CreateEventWithBoothAndDocumentsInput,
 } from './exhibitorBooth.schema';
 import { createOAuthClient } from '@/shared/google/oauth.client';
+import { DriveClient } from '@/shared/google/drive.client';
+import { User } from '@/features/auth/auth.model';
 import { verifyToken } from '@/shared/utils/jwt';
 import { anthropic } from '@/config/anthropic';
 import { DOCUMENT_EXTRACTION_PROMPT } from '@/features/scan/scan.prompt';
@@ -166,12 +168,17 @@ export class ExhibitorBoothService {
       .map((d) => d.driveFileUrl)
       .filter((url): url is string => !!url);
 
-    // Drive share (best-effort; non-fatal)
-    if (exhibitor.googleRefreshToken && publicDocuments.length > 0) {
+    // Drive share — only when visitor is signed in with Google (best-effort; non-fatal)
+    if (
+      visitorUserId &&
+      exhibitor.googleRefreshToken &&
+      publicDocuments.length > 0
+    ) {
       try {
         await this.shareDocumentsWithVisitor(
           publicDocuments,
           exhibitor.googleRefreshToken,
+          visitorUserId,
           visitorData.email
         );
       } catch (error) {
@@ -214,16 +221,47 @@ export class ExhibitorBoothService {
   private async shareDocumentsWithVisitor(
     documents: any[],
     exhibitorRefreshToken: string,
+    visitorUserId: string,
     visitorEmail: string
   ): Promise<void> {
     if (documents.length === 0) return;
 
-    const auth = createOAuthClient(exhibitorRefreshToken);
-    const drive = google.drive({ version: 'v3', auth: auth as any });
+    const visitor = await User.findById(visitorUserId).select(
+      '+googleRefreshToken meetSyncRootFolderId visitedBoothsFolderId'
+    );
+    if (!visitor?.googleRefreshToken) {
+      console.log('[CheckIn] visitor has no Google refresh token — skipping share');
+      return;
+    }
+
+    const visitorAuth = createOAuthClient(visitor.googleRefreshToken);
+    const driveClient = new DriveClient(visitorAuth);
+
+    let rootFolderId = visitor.meetSyncRootFolderId;
+    if (!rootFolderId) {
+      rootFolderId = await driveClient.ensureFolder(visitorAuth, 'MeetSync', null);
+    }
+    let sharedFolderId = visitor.visitedBoothsFolderId;
+    if (!sharedFolderId) {
+      sharedFolderId = await driveClient.ensureSharedBoothsFolder(visitorAuth, rootFolderId);
+    }
+    if (
+      rootFolderId !== visitor.meetSyncRootFolderId ||
+      sharedFolderId !== visitor.visitedBoothsFolderId
+    ) {
+      await User.updateOne(
+        { _id: visitor._id },
+        { meetSyncRootFolderId: rootFolderId, visitedBoothsFolderId: sharedFolderId }
+      );
+    }
+
+    const exhibitorAuth = createOAuthClient(exhibitorRefreshToken);
+    const exhibitorDrive = google.drive({ version: 'v3', auth: exhibitorAuth as any });
 
     for (const doc of documents) {
+      if (!doc.driveFileId) continue;
       try {
-        await drive.permissions.create({
+        await exhibitorDrive.permissions.create({
           fileId: doc.driveFileId,
           sendNotificationEmail: false,
           requestBody: {
@@ -234,8 +272,33 @@ export class ExhibitorBoothService {
         });
       } catch (error: any) {
         if (!error?.message?.includes('already')) {
-          console.error('[CheckIn] share failed', { fileName: doc.fileName, message: error?.message });
+          console.error('[CheckIn] permission grant failed', {
+            fileName: doc.fileName,
+            message: error?.message,
+          });
+          continue;
         }
+      }
+
+      try {
+        const existing = await driveClient.findShortcutToTarget(
+          visitorAuth,
+          doc.driveFileId,
+          sharedFolderId
+        );
+        if (!existing) {
+          await driveClient.createShortcutToFile(
+            visitorAuth,
+            doc.driveFileId,
+            doc.fileName,
+            sharedFolderId
+          );
+        }
+      } catch (error: any) {
+        console.error('[CheckIn] shortcut create failed', {
+          fileName: doc.fileName,
+          message: error?.message,
+        });
       }
     }
   }

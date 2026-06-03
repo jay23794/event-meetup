@@ -184,6 +184,50 @@ export class DriveClient {
     return this.findOrCreateFolder(oauth, 'My Booths', rootFolderId);
   }
 
+  async ensureSharedBoothsFolder(oauth: OAuth2Client, rootFolderId: string): Promise<string> {
+    return this.findOrCreateFolder(oauth, 'Shared Booths', rootFolderId);
+  }
+
+  async findShortcutToTarget(
+    oauth: OAuth2Client,
+    targetFileId: string,
+    parentFolderId: string
+  ): Promise<string | null> {
+    const driveApi = google.drive({ version: 'v3', auth: oauth as any });
+    const query = `mimeType='application/vnd.google-apps.shortcut' and '${parentFolderId}' in parents and trashed=false`;
+    const response = await driveApi.files.list({
+      q: query,
+      fields: 'files(id, shortcutDetails)',
+      pageSize: 100,
+    });
+    const match = (response.data.files ?? []).find(
+      (f) => f.shortcutDetails?.targetId === targetFileId
+    );
+    return match?.id ?? null;
+  }
+
+  async createShortcutToFile(
+    oauth: OAuth2Client,
+    targetFileId: string,
+    name: string,
+    parentFolderId: string
+  ): Promise<string> {
+    const driveApi = google.drive({ version: 'v3', auth: oauth as any });
+    const response = await driveApi.files.create({
+      requestBody: {
+        name,
+        mimeType: 'application/vnd.google-apps.shortcut',
+        parents: [parentFolderId],
+        shortcutDetails: { targetId: targetFileId },
+      },
+      fields: 'id',
+    });
+    if (!response.data.id) {
+      throw new Error(`Failed to create shortcut for ${name}`);
+    }
+    return response.data.id;
+  }
+
   async ensureEventSubfolder(oauth: OAuth2Client, parentFolderId: string, eventName: string): Promise<string> {
     const sanitizedName = eventName.replace(/['/]/g, '');
     return this.findOrCreateFolder(oauth, sanitizedName, parentFolderId);

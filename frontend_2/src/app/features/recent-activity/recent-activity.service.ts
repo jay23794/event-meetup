@@ -24,13 +24,36 @@ interface ApiResponseBody<T> {
   message: string;
 }
 
+export interface VisitedBoothContacts {
+  names: string[];
+  companies: string[];
+  titles: string[];
+  phones: string[];
+  emails: string[];
+  websites: string[];
+  socials: string[];
+  addresses: string[];
+}
+
 interface ScannedBoothItem {
   timestamp: string;
   boothName: string;
   eventName: string;
   qrId: string;
+  contacts?: VisitedBoothContacts;
   sharedDocuments: Array<{ url: string; fileName?: string }>;
 }
+
+const EMPTY_CONTACTS: VisitedBoothContacts = {
+  names: [],
+  companies: [],
+  titles: [],
+  phones: [],
+  emails: [],
+  websites: [],
+  socials: [],
+  addresses: [],
+};
 
 interface ScannedBoothsResponse {
   booths: ScannedBoothItem[];
@@ -76,6 +99,7 @@ export interface ActivityItem {
   subtitle: string;
   timestamp: string;
   eventId?: string;
+  contacts?: VisitedBoothContacts;
 }
 
 interface RawBooth {
@@ -127,6 +151,7 @@ export class RecentActivityService {
             title: `Visited booth ${b.boothName}`,
             subtitle: b.eventName ? `at ${b.eventName}` : 'Booth scan',
             timestamp: b.timestamp,
+            contacts: b.contacts ?? EMPTY_CONTACTS,
           })),
           ...events.map<ActivityItem>((e) => ({
             id: `event:${e.id}`,

@@ -80,58 +80,209 @@
         <li
           class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
         >
-          <div class="flex items-start gap-4 p-4 sm:p-5">
-            <span
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-semibold text-white shadow-md"
-              aria-hidden="true"
-            >
-              V
-            </span>
-            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <p
-                class="truncate text-sm font-medium text-slate-900 sm:text-base"
+          <div class="flex flex-col gap-3 p-4 sm:p-5">
+            <div class="flex items-start gap-4">
+              <span
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-semibold text-white shadow-md"
+                aria-hidden="true"
               >
-                {{ booth.boothName }}
-              </p>
-              <p class="truncate text-xs text-slate-500 sm:text-sm">
-                {{ booth.eventName || 'Booth scan' }}
-              </p>
-              @if (booth.sharedDocuments.length > 0) {
-                <button
-                  type="button"
-                  (click)="toggleDocuments(booth.qrId)"
-                  [attr.aria-expanded]="isExpanded(booth.qrId)"
-                  [attr.aria-controls]="'docs-' + booth.qrId"
-                  class="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-primary-700 hover:underline"
+                V
+              </span>
+              <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                <p
+                  class="truncate text-sm font-medium text-slate-900 sm:text-base"
                 >
-                  {{ isExpanded(booth.qrId) ? 'Hide' : 'View' }}
-                  {{ booth.sharedDocuments.length }} shared document{{
-                    booth.sharedDocuments.length === 1 ? '' : 's'
-                  }}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    class="h-3.5 w-3.5 transition-transform"
-                    [class.rotate-180]="isExpanded(booth.qrId)"
-                    aria-hidden="true"
+                  {{ booth.boothName }}
+                </p>
+                <p class="truncate text-xs text-slate-500 sm:text-sm">
+                  {{ booth.eventName || 'Booth scan' }}
+                </p>
+                @if (booth.sharedDocuments.length > 0) {
+                  <button
+                    type="button"
+                    (click)="toggleDocuments(booth.qrId)"
+                    [attr.aria-expanded]="isExpanded(booth.qrId)"
+                    [attr.aria-controls]="'docs-' + booth.qrId"
+                    class="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-primary-700 hover:underline"
                   >
-                    <path
-                      fill-rule="evenodd"
-                      d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                </button>
-              }
+                    {{ isExpanded(booth.qrId) ? 'Hide' : 'View' }}
+                    {{ booth.sharedDocuments.length }} shared document{{
+                      booth.sharedDocuments.length === 1 ? '' : 's'
+                    }}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="h-3.5 w-3.5 transition-transform"
+                      [class.rotate-180]="isExpanded(booth.qrId)"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                }
+              </div>
+              <time
+                class="shrink-0 text-xs text-slate-400 sm:text-sm"
+                [attr.datetime]="booth.timestamp"
+                [title]="absoluteTime(booth.timestamp)"
+              >
+                {{ relativeTime(booth.timestamp) }}
+              </time>
             </div>
-            <time
-              class="shrink-0 text-xs text-slate-400 sm:text-sm"
-              [attr.datetime]="booth.timestamp"
-              [title]="absoluteTime(booth.timestamp)"
-            >
-              {{ relativeTime(booth.timestamp) }}
-            </time>
+
+            @if (hasAnyContact(booth.contacts)) {
+              <dl
+                class="flex flex-col gap-2 border-t border-slate-100 pt-3 text-xs sm:text-sm"
+              >
+                @if (booth.contacts.names.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Name
+                    </dt>
+                    <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                      @for (v of booth.contacts.names; track v) {
+                        <span class="rounded-md bg-slate-100 px-2 py-0.5">
+                          {{ v }}
+                        </span>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.companies.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Company
+                    </dt>
+                    <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                      @for (v of booth.contacts.companies; track v) {
+                        <span class="rounded-md bg-slate-100 px-2 py-0.5">
+                          {{ v }}
+                        </span>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.titles.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Title
+                    </dt>
+                    <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                      @for (v of booth.contacts.titles; track v) {
+                        <span class="rounded-md bg-slate-100 px-2 py-0.5">
+                          {{ v }}
+                        </span>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.phones.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Mobile
+                    </dt>
+                    <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                      @for (v of booth.contacts.phones; track v) {
+                        <a
+                          [href]="'tel:' + v"
+                          class="font-medium text-primary-700 hover:underline"
+                        >
+                          {{ v }}
+                        </a>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.emails.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Email
+                    </dt>
+                    <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                      @for (v of booth.contacts.emails; track v) {
+                        <a
+                          [href]="'mailto:' + v"
+                          class="font-medium text-primary-700 hover:underline"
+                        >
+                          {{ v }}
+                        </a>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.websites.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Website
+                    </dt>
+                    <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                      @for (v of booth.contacts.websites; track v) {
+                        <a
+                          [href]="ensureHttp(v)"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="font-medium text-primary-700 hover:underline"
+                        >
+                          {{ v }}
+                        </a>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.socials.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Social
+                    </dt>
+                    <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                      @for (v of booth.contacts.socials; track v) {
+                        <a
+                          [href]="ensureHttp(v)"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="font-medium text-primary-700 hover:underline"
+                        >
+                          {{ socialLabel(v) }}
+                        </a>
+                      }
+                    </dd>
+                  </div>
+                }
+                @if (booth.contacts.addresses.length > 0) {
+                  <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                    <dt
+                      class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                    >
+                      Address
+                    </dt>
+                    <dd class="flex flex-col gap-1 text-slate-700">
+                      @for (v of booth.contacts.addresses; track v) {
+                        <span>{{ v }}</span>
+                      }
+                    </dd>
+                  </div>
+                }
+              </dl>
+            }
           </div>
 
           @if (

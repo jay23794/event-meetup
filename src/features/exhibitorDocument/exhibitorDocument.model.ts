@@ -18,6 +18,8 @@ export interface IExhibitorDocument extends Document {
   extractedPhone?: string;
   extractedEmail?: string;
   extractedWebsite?: string;
+  extractedLinkedin?: string;
+  extractedSocialMedia?: string[];
   extractedAddress?: string;
   extractionStatus: 'pending' | 'success' | 'failed';
   createdAt: Date;
@@ -43,6 +45,8 @@ const exhibitorDocumentSchema = new Schema<IExhibitorDocument>(
     extractedPhone: String,
     extractedEmail: String,
     extractedWebsite: String,
+    extractedLinkedin: String,
+    extractedSocialMedia: { type: [String], default: undefined },
     extractedAddress: String,
     extractionStatus: { type: String, enum: ['pending', 'success', 'failed'], default: 'pending' },
   },

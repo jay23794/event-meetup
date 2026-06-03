@@ -3,7 +3,12 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
-import type { SharedDocument, VisitedBooth } from './visitor.models';
+import {
+  EMPTY_VISITED_BOOTH_CONTACTS,
+  type SharedDocument,
+  type VisitedBooth,
+  type VisitedBoothContacts,
+} from './visitor.models';
 
 interface ApiResponseBody<T> {
   success: boolean;
@@ -16,6 +21,7 @@ interface RawVisitedBooth {
   boothName: string;
   eventName: string;
   timestamp: string;
+  contacts?: Partial<VisitedBoothContacts>;
   sharedDocuments?: SharedDocument[];
 }
 
@@ -54,11 +60,22 @@ export class VisitorService {
   }
 
   private normalize(raw: RawVisitedBooth): VisitedBooth {
+    const c = raw.contacts ?? {};
     return {
       qrId: raw.qrId,
       boothName: raw.boothName,
       eventName: raw.eventName,
       timestamp: raw.timestamp,
+      contacts: {
+        names: c.names ?? EMPTY_VISITED_BOOTH_CONTACTS.names,
+        companies: c.companies ?? EMPTY_VISITED_BOOTH_CONTACTS.companies,
+        titles: c.titles ?? EMPTY_VISITED_BOOTH_CONTACTS.titles,
+        phones: c.phones ?? EMPTY_VISITED_BOOTH_CONTACTS.phones,
+        emails: c.emails ?? EMPTY_VISITED_BOOTH_CONTACTS.emails,
+        websites: c.websites ?? EMPTY_VISITED_BOOTH_CONTACTS.websites,
+        socials: c.socials ?? EMPTY_VISITED_BOOTH_CONTACTS.socials,
+        addresses: c.addresses ?? EMPTY_VISITED_BOOTH_CONTACTS.addresses,
+      },
       sharedDocuments: raw.sharedDocuments ?? [],
     };
   }

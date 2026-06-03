@@ -136,6 +136,12 @@ export class ExhibitorDocumentService {
         extractedPhone: parsed.phone || undefined,
         extractedEmail: parsed.email || undefined,
         extractedWebsite: parsed.website || undefined,
+        extractedLinkedin: parsed.linkedin || undefined,
+        extractedSocialMedia: Array.isArray(parsed.socialMedia)
+          ? parsed.socialMedia.filter(
+              (s: unknown): s is string => typeof s === 'string' && !!s.trim()
+            )
+          : undefined,
         extractedAddress: parsed.address || undefined,
         extractionStatus: 'success' as const,
       };

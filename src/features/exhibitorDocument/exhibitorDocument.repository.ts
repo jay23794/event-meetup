@@ -20,6 +20,8 @@ export class ExhibitorDocumentRepository {
     extractedPhone?: string;
     extractedEmail?: string;
     extractedWebsite?: string;
+    extractedLinkedin?: string;
+    extractedSocialMedia?: string[];
     extractedAddress?: string;
     extractionStatus?: 'pending' | 'success' | 'failed';
   }): Promise<IExhibitorDocument> {
@@ -41,6 +43,8 @@ export class ExhibitorDocumentRepository {
       extractedPhone: data.extractedPhone,
       extractedEmail: data.extractedEmail,
       extractedWebsite: data.extractedWebsite,
+      extractedLinkedin: data.extractedLinkedin,
+      extractedSocialMedia: data.extractedSocialMedia,
       extractedAddress: data.extractedAddress,
       extractionStatus: data.extractionStatus ?? 'pending',
     });

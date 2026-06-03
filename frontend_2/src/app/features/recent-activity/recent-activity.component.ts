@@ -6,6 +6,7 @@ import {
   ActivityKind,
   ExhibitorEventItem,
   RecentActivityService,
+  VisitedBoothContacts,
 } from './recent-activity.service';
 import { QrStateService } from '@features/qr/qr-state.service';
 
@@ -120,52 +121,241 @@ interface TabDef {
           <ul class="flex flex-col gap-3">
             @for (item of visibleItems(); track item.id) {
               <li>
-                <button
-                  type="button"
-                  (click)="onItemClick(item)"
-                  [disabled]="!isClickable(item) || !!openingId()"
-                  class="flex w-full items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition sm:p-5"
-                  [class.cursor-pointer]="isClickable(item)"
-                  [class.hover:border-primary-200]="isClickable(item)"
-                  [class.hover:shadow-md]="isClickable(item)"
-                  [class.cursor-default]="!isClickable(item)"
-                  [class.opacity-60]="!!openingId() && openingId() !== item.id"
-                  [attr.aria-busy]="openingId() === item.id"
-                >
-                  <span
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold text-white shadow-md"
-                    [class]="accentFor(item.kind)"
+                @if (item.kind === 'created_exhibitor_event') {
+                  <button
+                    type="button"
+                    (click)="onItemClick(item)"
+                    [disabled]="!isClickable(item) || !!openingId()"
+                    class="flex w-full items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition sm:p-5"
+                    [class.cursor-pointer]="isClickable(item)"
+                    [class.hover:border-primary-200]="isClickable(item)"
+                    [class.hover:shadow-md]="isClickable(item)"
+                    [class.cursor-default]="!isClickable(item)"
+                    [class.opacity-60]="!!openingId() && openingId() !== item.id"
+                    [attr.aria-busy]="openingId() === item.id"
+                  >
+                    <span
+                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold text-white shadow-md"
+                      [class]="accentFor(item.kind)"
+                      [attr.aria-label]="labelFor(item.kind)"
+                    >
+                      {{ badgeFor(item.kind) }}
+                    </span>
+                    <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <p
+                        class="truncate text-sm font-medium text-slate-900 sm:text-base"
+                      >
+                        {{ item.title }}
+                      </p>
+                      <p class="truncate text-xs text-slate-500 sm:text-sm">
+                        {{ item.subtitle }}
+                      </p>
+                    </div>
+                    @if (openingId() === item.id) {
+                      <span
+                        class="shrink-0 text-xs font-medium text-primary-700"
+                        role="status"
+                      >
+                        Opening…
+                      </span>
+                    } @else {
+                      <time
+                        class="shrink-0 text-xs text-slate-400 sm:text-sm"
+                        [attr.datetime]="item.timestamp"
+                        [title]="absoluteTime(item.timestamp)"
+                      >
+                        {{ relativeTime(item.timestamp) }}
+                      </time>
+                    }
+                  </button>
+                } @else {
+                  <article
+                    class="flex w-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm sm:p-5"
                     [attr.aria-label]="labelFor(item.kind)"
                   >
-                    {{ badgeFor(item.kind) }}
-                  </span>
-                  <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <p
-                      class="truncate text-sm font-medium text-slate-900 sm:text-base"
-                    >
-                      {{ item.title }}
-                    </p>
-                    <p class="truncate text-xs text-slate-500 sm:text-sm">
-                      {{ item.subtitle }}
-                    </p>
-                  </div>
-                  @if (openingId() === item.id) {
-                    <span
-                      class="shrink-0 text-xs font-medium text-primary-700"
-                      role="status"
-                    >
-                      Opening…
-                    </span>
-                  } @else {
-                    <time
-                      class="shrink-0 text-xs text-slate-400 sm:text-sm"
-                      [attr.datetime]="item.timestamp"
-                      [title]="absoluteTime(item.timestamp)"
-                    >
-                      {{ relativeTime(item.timestamp) }}
-                    </time>
-                  }
-                </button>
+                    <div class="flex items-start gap-4">
+                      <span
+                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold text-white shadow-md"
+                        [class]="accentFor(item.kind)"
+                        aria-hidden="true"
+                      >
+                        {{ badgeFor(item.kind) }}
+                      </span>
+                      <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <p
+                          class="truncate text-sm font-medium text-slate-900 sm:text-base"
+                        >
+                          {{ item.title }}
+                        </p>
+                        <p class="truncate text-xs text-slate-500 sm:text-sm">
+                          {{ item.subtitle }}
+                        </p>
+                      </div>
+                      <time
+                        class="shrink-0 text-xs text-slate-400 sm:text-sm"
+                        [attr.datetime]="item.timestamp"
+                        [title]="absoluteTime(item.timestamp)"
+                      >
+                        {{ relativeTime(item.timestamp) }}
+                      </time>
+                    </div>
+
+                    @if (item.contacts && hasAnyContact(item.contacts)) {
+                      <dl
+                        class="flex flex-col gap-2 border-t border-slate-100 pt-3 text-xs sm:text-sm"
+                      >
+                        @if (item.contacts.names.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Name
+                            </dt>
+                            <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                              @for (v of item.contacts.names; track v) {
+                                <span
+                                  class="rounded-md bg-slate-100 px-2 py-0.5"
+                                >
+                                  {{ v }}
+                                </span>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.companies.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Company
+                            </dt>
+                            <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                              @for (v of item.contacts.companies; track v) {
+                                <span
+                                  class="rounded-md bg-slate-100 px-2 py-0.5"
+                                >
+                                  {{ v }}
+                                </span>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.titles.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Title
+                            </dt>
+                            <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                              @for (v of item.contacts.titles; track v) {
+                                <span
+                                  class="rounded-md bg-slate-100 px-2 py-0.5"
+                                >
+                                  {{ v }}
+                                </span>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.phones.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Mobile
+                            </dt>
+                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                              @for (v of item.contacts.phones; track v) {
+                                <a
+                                  [href]="'tel:' + v"
+                                  class="font-medium text-primary-700 hover:underline"
+                                >
+                                  {{ v }}
+                                </a>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.emails.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Email
+                            </dt>
+                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                              @for (v of item.contacts.emails; track v) {
+                                <a
+                                  [href]="'mailto:' + v"
+                                  class="font-medium text-primary-700 hover:underline"
+                                >
+                                  {{ v }}
+                                </a>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.websites.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Website
+                            </dt>
+                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                              @for (v of item.contacts.websites; track v) {
+                                <a
+                                  [href]="ensureHttp(v)"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  class="font-medium text-primary-700 hover:underline"
+                                >
+                                  {{ v }}
+                                </a>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.socials.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Social
+                            </dt>
+                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                              @for (v of item.contacts.socials; track v) {
+                                <a
+                                  [href]="ensureHttp(v)"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  class="font-medium text-primary-700 hover:underline"
+                                >
+                                  {{ socialLabel(v) }}
+                                </a>
+                              }
+                            </dd>
+                          </div>
+                        }
+                        @if (item.contacts.addresses.length > 0) {
+                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                            <dt
+                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                            >
+                              Address
+                            </dt>
+                            <dd class="flex flex-col gap-1 text-slate-700">
+                              @for (v of item.contacts.addresses; track v) {
+                                <span>{{ v }}</span>
+                              }
+                            </dd>
+                          </div>
+                        }
+                      </dl>
+                    }
+                  </article>
+                }
               </li>
             }
           </ul>
@@ -282,6 +472,36 @@ export class RecentActivityComponent implements OnInit {
     return kind === 'visited_booth'
       ? 'bg-gradient-to-br from-emerald-500 to-emerald-700'
       : 'bg-gradient-to-br from-primary-500 to-primary-700';
+  }
+
+  hasAnyContact(contacts: VisitedBoothContacts): boolean {
+    return (
+      contacts.names.length > 0 ||
+      contacts.companies.length > 0 ||
+      contacts.titles.length > 0 ||
+      contacts.phones.length > 0 ||
+      contacts.emails.length > 0 ||
+      contacts.websites.length > 0 ||
+      contacts.socials.length > 0 ||
+      contacts.addresses.length > 0
+    );
+  }
+
+  ensureHttp(url: string): string {
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  }
+
+  socialLabel(url: string): string {
+    try {
+      const host = new URL(this.ensureHttp(url)).hostname.replace(
+        /^www\./,
+        '',
+      );
+      const base = host.split('.')[0] ?? host;
+      return base.charAt(0).toUpperCase() + base.slice(1);
+    } catch {
+      return url;
+    }
   }
 
   absoluteTime(iso: string): string {

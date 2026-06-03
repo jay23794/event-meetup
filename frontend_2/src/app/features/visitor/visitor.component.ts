@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { VisitorService } from './visitor.service';
-import type { VisitedBooth } from './visitor.models';
+import type { VisitedBooth, VisitedBoothContacts } from './visitor.models';
 
 @Component({
   selector: 'app-visitor',
@@ -49,6 +49,36 @@ export class VisitorComponent implements OnInit {
 
   isExpanded(qrId: string): boolean {
     return this.expandedQrId() === qrId;
+  }
+
+  hasAnyContact(contacts: VisitedBoothContacts): boolean {
+    return (
+      contacts.names.length > 0 ||
+      contacts.companies.length > 0 ||
+      contacts.titles.length > 0 ||
+      contacts.phones.length > 0 ||
+      contacts.emails.length > 0 ||
+      contacts.websites.length > 0 ||
+      contacts.socials.length > 0 ||
+      contacts.addresses.length > 0
+    );
+  }
+
+  ensureHttp(url: string): string {
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  }
+
+  socialLabel(url: string): string {
+    try {
+      const host = new URL(this.ensureHttp(url)).hostname.replace(
+        /^www\./,
+        '',
+      );
+      const base = host.split('.')[0] ?? host;
+      return base.charAt(0).toUpperCase() + base.slice(1);
+    } catch {
+      return url;
+    }
   }
 
   fileNameFor(url: string, fallback?: string): string {

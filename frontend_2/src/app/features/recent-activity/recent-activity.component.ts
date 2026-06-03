@@ -202,19 +202,21 @@ interface TabDef {
 
                     @if (item.contacts && hasAnyContact(item.contacts)) {
                       <dl
-                        class="flex flex-col gap-2 border-t border-slate-100 pt-3 text-xs sm:text-sm"
+                        class="grid grid-cols-1 gap-x-6 gap-y-2 border-t border-slate-100 pt-3 text-xs sm:grid-cols-2 sm:text-sm lg:grid-cols-3"
                       >
                         @if (item.contacts.names.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Name
                             </dt>
-                            <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                            <dd
+                              class="flex flex-wrap gap-1 text-slate-800 min-w-0"
+                            >
                               @for (v of item.contacts.names; track v) {
                                 <span
-                                  class="rounded-md bg-slate-100 px-2 py-0.5"
+                                  class="rounded-md bg-slate-100 px-1.5 py-0.5"
                                 >
                                   {{ v }}
                                 </span>
@@ -223,16 +225,18 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.companies.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Company
                             </dt>
-                            <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                            <dd
+                              class="flex flex-wrap gap-1 text-slate-800 min-w-0"
+                            >
                               @for (v of item.contacts.companies; track v) {
                                 <span
-                                  class="rounded-md bg-slate-100 px-2 py-0.5"
+                                  class="rounded-md bg-slate-100 px-1.5 py-0.5"
                                 >
                                   {{ v }}
                                 </span>
@@ -241,16 +245,18 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.titles.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Title
                             </dt>
-                            <dd class="flex flex-wrap gap-1.5 text-slate-800">
+                            <dd
+                              class="flex flex-wrap gap-1 text-slate-800 min-w-0"
+                            >
                               @for (v of item.contacts.titles; track v) {
                                 <span
-                                  class="rounded-md bg-slate-100 px-2 py-0.5"
+                                  class="rounded-md bg-slate-100 px-1.5 py-0.5"
                                 >
                                   {{ v }}
                                 </span>
@@ -259,13 +265,13 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.phones.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Mobile
                             </dt>
-                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                            <dd class="flex flex-wrap gap-x-2 gap-y-1 min-w-0">
                               @for (v of item.contacts.phones; track v) {
                                 <a
                                   [href]="'tel:' + v"
@@ -278,17 +284,17 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.emails.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Email
                             </dt>
-                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                            <dd class="flex flex-wrap gap-x-2 gap-y-1 min-w-0">
                               @for (v of item.contacts.emails; track v) {
                                 <a
                                   [href]="'mailto:' + v"
-                                  class="font-medium text-primary-700 hover:underline"
+                                  class="truncate font-medium text-primary-700 hover:underline"
                                 >
                                   {{ v }}
                                 </a>
@@ -297,19 +303,19 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.websites.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Website
                             </dt>
-                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                            <dd class="flex flex-wrap gap-x-2 gap-y-1 min-w-0">
                               @for (v of item.contacts.websites; track v) {
                                 <a
                                   [href]="ensureHttp(v)"
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  class="font-medium text-primary-700 hover:underline"
+                                  class="truncate font-medium text-primary-700 hover:underline"
                                 >
                                   {{ v }}
                                 </a>
@@ -318,13 +324,13 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.socials.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div class="flex items-baseline gap-2 min-w-0">
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Social
                             </dt>
-                            <dd class="flex flex-wrap gap-x-3 gap-y-1">
+                            <dd class="flex flex-wrap gap-x-2 gap-y-1 min-w-0">
                               @for (v of item.contacts.socials; track v) {
                                 <a
                                   [href]="ensureHttp(v)"
@@ -339,13 +345,17 @@ interface TabDef {
                           </div>
                         }
                         @if (item.contacts.addresses.length > 0) {
-                          <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                          <div
+                            class="flex items-baseline gap-2 min-w-0 sm:col-span-2 lg:col-span-3"
+                          >
                             <dt
-                              class="shrink-0 font-medium uppercase tracking-wide text-slate-400 sm:w-20"
+                              class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs"
                             >
                               Address
                             </dt>
-                            <dd class="flex flex-col gap-1 text-slate-700">
+                            <dd
+                              class="flex flex-wrap gap-x-3 gap-y-1 text-slate-700 min-w-0"
+                            >
                               @for (v of item.contacts.addresses; track v) {
                                 <span>{{ v }}</span>
                               }

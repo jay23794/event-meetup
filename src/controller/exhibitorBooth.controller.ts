@@ -29,8 +29,8 @@ const checkInBodySchema = z.object({
   phone: z.string().optional(),
 });
 
-export class ExhibitorBoothController {
-  listByEvent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+
+ export const listByEvent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.unauthorized();
     const { eventId } = eventIdParamSchema.parse(req.params);
@@ -38,13 +38,13 @@ export class ExhibitorBoothController {
     res.status(200).json(successResponse({ booths }));
   });
 
-  getBoothByQrId = asyncHandler(async (req: Request, res: Response) => {
+  export const  getBoothByQrId = asyncHandler(async (req: Request, res: Response) => {
     const { qrId } = qrIdParamSchema.parse(req.params);
     const booth = await exhibitorBoothService.getBoothByQrId(qrId);
     res.status(200).json(successResponse({ booth }));
   });
 
-  checkInVisitor = asyncHandler(async (req: Request, res: Response) => {
+   export const  checkInVisitor = asyncHandler(async (req: Request, res: Response) => {
     const { qrId } = qrIdParamSchema.parse(req.params);
     const body = checkInBodySchema.parse(req.body);
     const authToken = req.headers.authorization?.replace('Bearer ', '');
@@ -52,21 +52,21 @@ export class ExhibitorBoothController {
     res.status(200).json(successResponse(result));
   });
 
-  listPublicDocuments = asyncHandler(async (req: Request, res: Response) => {
+  export const   listPublicDocuments = asyncHandler(async (req: Request, res: Response) => {
     const { qrId } = qrIdParamSchema.parse(req.params);
     const documents = await exhibitorBoothService.listPublicDocumentsByQrId(qrId);
     res.status(200).json(successResponse({ documents }));
   });
 
-  createEventWithBoothAndDocuments = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response) => {
-      const userId = req.user?.id;
-      if (!userId) throw ApiError.unauthorized();
-      const body = createEventWithBoothAndDocumentsSchema.parse(req.body);
-      const result = await exhibitorBoothService.createEventWithBoothAndDocuments(userId, body);
-      res.status(201).json(successResponse(result));
-    }
-  );
-}
+  // createEventWithBoothAndDocuments = asyncHandler(
+  //   async (req: AuthenticatedRequest, res: Response) => {
+  //     const userId = req.user?.id;
+  //     if (!userId) throw ApiError.unauthorized();
+  //     const body = createEventWithBoothAndDocumentsSchema.parse(req.body);
+  //     const result = await exhibitorBoothService.createEventWithBoothAndDocuments(userId, body);
+  //     res.status(201).json(successResponse(result));
+  //   }
+  // );
 
-export const exhibitorBoothController = new ExhibitorBoothController();
+
+

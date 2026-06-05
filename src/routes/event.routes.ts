@@ -1,15 +1,14 @@
 import { Router } from 'express';
-import { EventController } from '@/controller/event.controller';
-
 import { authMiddleware } from '@/middleware/auth.middleware';
 import { validate } from '@/middleware/validate.middleware';
 import { createEventWithBoothAndDocumentsSchema } from '@/types/zod/exhibitorBooth.schema';
-import { ExhibitorBoothController } from '@/controller/exhibitorBooth.controller';
+
+import { listEvents } from '@/controller/event.controller';
 
 
 const router = Router();
-const controller = new EventController();
-const boothController = new ExhibitorBoothController();
+
+
 
 router.use(authMiddleware);
 
@@ -28,7 +27,7 @@ router.use(authMiddleware);
  *       401:
  *         description: Unauthorized
  */
-router.get('/', controller.listEvents);
+router.get('/',listEvents);
 
 /**
  * @swagger
@@ -78,10 +77,10 @@ router.get('/', controller.listEvents);
  *       502:
  *         description: Extraction failed
  */
-router.post(
-  '/create-with-booth-and-documents',
-  validate(createEventWithBoothAndDocumentsSchema),
-  boothController.createEventWithBoothAndDocuments
-);
+// router.post(
+//   '/create-with-booth-and-documents',
+//   validate(createEventWithBoothAndDocumentsSchema),
+//  createEventWithBoothAndDocuments
+// );
 
 export default router;

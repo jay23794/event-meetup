@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import { eventController as controller } from '@/controller/event.controller';
-import { exhibitorBoothController as boothController } from '@/controller/exhibitorBooth.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import { listEvents } from '@/controller/event.controller';
 
 const router = Router();
 
@@ -22,7 +21,7 @@ router.use(authMiddleware);
  *       401:
  *         description: Unauthorized
  */
-router.get('/', controller.listEvents);
+router.get('/', listEvents);
 
 /**
  * @swagger
@@ -72,9 +71,9 @@ router.get('/', controller.listEvents);
  *       502:
  *         description: Extraction failed
  */
-router.post(
-  '/create-with-booth-and-documents',
-  boothController.createEventWithBoothAndDocuments
-);
+// router.post(
+//   '/create-with-booth-and-documents',
+//  createEventWithBoothAndDocuments
+// );
 
 export default router;

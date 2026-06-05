@@ -5,7 +5,7 @@ import { ExhibitorBoothRepository, exhibitorBoothRepository } from '@/repository
 import { VisitorCheckIn } from '@/model/visitorCheckIn.model';
 import { VisitorScannedBooth } from '@/model/visitorScannedBooth.model';
 import { EventRepository, eventRepository } from '@/repository/event.repository';
-import { EventService, eventService } from '@/service/event.service';
+import { EventService } from '@/service/event.service';
 import { AuthRepository, authRepository } from '@/repository/auth.repository';
 import {
   ExhibitorDocumentRepository,
@@ -34,7 +34,7 @@ export class ExhibitorBoothService {
   constructor(
     private _repository: ExhibitorBoothRepository = exhibitorBoothRepository,
     private _eventRepository: EventRepository = eventRepository,
-    private _eventService: EventService = eventService,
+    // private _eventService: EventService = eventService,
     private _authRepository: AuthRepository = authRepository,
     private _docRepository: ExhibitorDocumentRepository = exhibitorDocumentRepository
   ) {}
@@ -518,34 +518,34 @@ export class ExhibitorBoothService {
     };
   }
 
-  async createEventWithBoothAndDocuments(
-    userId: string,
-    payload: CreateEventWithBoothAndDocumentsInput
-  ) {
-    const event = await this._eventService.createEvent(userId, {
-      name: payload.eventName,
-      startDate: payload.startDate,
-      endDate: payload.endDate,
-    });
+  // async createEventWithBoothAndDocuments(
+  //   userId: string,
+  //   payload: CreateEventWithBoothAndDocumentsInput
+  // ) {
+  //   const event = await this._eventService.createEvent(userId, {
+  //     name: payload.eventName,
+  //     startDate: payload.startDate,
+  //     endDate: payload.endDate,
+  //   });
 
-    const boothResult = await this.createBoothWithDocuments(userId, event._id.toString(), {
-      boothName: payload.boothName,
-      description: payload.description,
-      documents: payload.documents,
-    });
+  //   const boothResult = await this.createBoothWithDocuments(userId, event._id.toString(), {
+  //     boothName: payload.boothName,
+  //     description: payload.description,
+  //     documents: payload.documents,
+  //   });
 
-    return {
-      event: {
-        id: event._id,
-        name: event.name,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        driveEventFolderId: event.driveEventFolderId,
-        driveImagesFolderId: event.driveImagesFolderId,
-      },
-      ...boothResult,
-    };
-  }
+  //   return {
+  //     event: {
+  //       id: event._id,
+  //       name: event.name,
+  //       startDate: event.startDate,
+  //       endDate: event.endDate,
+  //       driveEventFolderId: event.driveEventFolderId,
+  //       driveImagesFolderId: event.driveImagesFolderId,
+  //     },
+  //     ...boothResult,
+  //   };
+  // }
 }
 
 export const exhibitorBoothService = new ExhibitorBoothService();

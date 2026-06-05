@@ -5,7 +5,7 @@ import { CreateEventInput } from '@/types/zod/event.schema';
 import { DriveService } from '@/service/drive.service';
 
 export class EventService {
-  constructor(private _repository: EventRepository = eventRepository) {}
+  constructor(private _repository: EventRepository ) {}
 
   async listEvents(userId: string) {
     return this._repository.findEventsByOwner(userId);
@@ -47,4 +47,4 @@ export class EventService {
   }
 }
 
-export const eventService = new EventService();
+

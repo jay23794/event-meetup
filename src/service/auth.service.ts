@@ -1,6 +1,6 @@
 import { OAuth2Client } from 'google-auth-library';
 import { config } from '@/config/env';
-import { AuthRepository, authRepository } from '@/repository/auth.repository';
+import { AuthRepository } from '@/repository/auth.repository';
 import { ApiError } from '@/errors/ApiError';
 import { generateToken } from '@/utils/jwt';
 import { createOAuthClient } from '@/libs/oauth.client';
@@ -26,7 +26,7 @@ const buildOAuthClient = () =>
   );
 
 export class AuthService {
-  constructor(private _repository: AuthRepository = authRepository) {}
+  constructor(private _repository: AuthRepository) {}
 
   buildGoogleAuthUrl(params: { origin?: string; returnUrl?: string }): string {
     const { origin, returnUrl } = params;
@@ -126,4 +126,4 @@ export class AuthService {
   }
 }
 
-export const authService = new AuthService();
+

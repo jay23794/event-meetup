@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { authService } from '@/service/auth.service';
 import { asyncHandler } from '@/utils/asyncHandler';
+import { authService } from '@/infra/container';
 
 const authQuerySchema = z.object({
   origin: z.string().optional(),

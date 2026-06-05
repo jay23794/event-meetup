@@ -1,5 +1,6 @@
+import { googleAuth, googleAuthCallback } from '@/controller/auth.controller';
 import { Router } from 'express';
-import { authController as controller } from '@/controller/auth.controller';
+
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const router = Router();
  *       302:
  *         description: Redirect to Google consent screen
  */
-router.get('/google', controller.googleAuth);
+router.get('/google',googleAuth);
 
 /**
  * @swagger
@@ -34,6 +35,6 @@ router.get('/google', controller.googleAuth);
  *       302:
  *         description: Redirect to frontend with JWT or error
  */
-router.get('/google/callback', controller.googleAuthCallback);
+router.get('/google/callback', googleAuthCallback);
 
 export default router;

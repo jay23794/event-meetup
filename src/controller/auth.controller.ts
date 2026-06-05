@@ -2,16 +2,9 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { authService } from '@/infra/container';
+import { AuthQuerySchema, CallbackQuerySchema } from '@/types/zod/auth.schema';
 
-const authQuerySchema = z.object({
-  origin: z.string().optional(),
-  returnUrl: z.string().optional(),
-});
 
-const callbackQuerySchema = z.object({
-  code: z.string().optional(),
-  state: z.string().optional(),
-});
 
 const decodeState = (
   state: string | undefined
@@ -31,15 +24,15 @@ const decodeState = (
 const resolveFrontendUrl = (origin: string | undefined): string =>
   origin || process.env.FRONTEND_URL || 'http://localhost:5173';
 
-export class AuthController {
-  googleAuth = asyncHandler(async (req: Request, res: Response) => {
-    const query = authQuerySchema.parse(req.query);
+
+  export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
+    const query = AuthQuerySchema.parse(req.query);
     const url = authService.buildGoogleAuthUrl(query);
     res.redirect(url);
   });
 
-  googleAuthCallback = asyncHandler(async (req: Request, res: Response) => {
-    const { code, state } = callbackQuerySchema.parse(req.query);
+  export const  googleAuthCallback = asyncHandler(async (req: Request, res: Response) => {
+    const { code, state } = CallbackQuerySchema.parse(req.query);
     const { origin, returnUrl } = decodeState(state);
     const frontendUrl = resolveFrontendUrl(origin);
     const returnUrlSuffix = returnUrl
@@ -60,6 +53,6 @@ export class AuthController {
       return res.redirect(`${frontendUrl}/signin?error=${encodeURIComponent(errorMsg)}`);
     }
   });
-}
 
-export const authController = new AuthController();
+
+

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ApiError } from '@/errors/ApiError';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { successResponse } from '@/utils/ApiResponse';
-import { exhibitorBoothService } from '@/infra/container';
+import { exhibitorBoothService, visitorService } from '@/infra/container';
 import { createEventWithBoothAndDocumentsSchema } from '@/types/zod/exhibitorBooth.schema';
 
 export interface AuthenticatedRequest extends Request {
@@ -44,13 +44,7 @@ export const checkInBodySchema = z.object({
     res.status(200).json(successResponse({ booth }));
   });
 
-   export const  checkInVisitor = asyncHandler(async (req: Request, res: Response) => {
-    const { qrId } = qrIdParamSchema.parse(req.params);
-    const body = checkInBodySchema.parse(req.body);
-    const authToken = req.headers.authorization?.replace('Bearer ', '');
-    const result = await exhibitorBoothService.checkInVisitor(qrId, body, authToken);
-    res.status(200).json(successResponse(result));
-  });
+
 
   export const   listPublicDocuments = asyncHandler(async (req: Request, res: Response) => {
     const { qrId } = qrIdParamSchema.parse(req.params);

@@ -4,6 +4,7 @@ import { ApiError } from '@/errors/ApiError';
 import { successResponse } from '@/utils/ApiResponse';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { visitorService } from '@/infra/container';
+import { qrIdParamSchema, checkInBodySchema } from './exhibitorBooth.controller';
 
 
 
@@ -33,3 +34,10 @@ const listScannedBoothsQuerySchema = z.object({
     res.status(200).json(successResponse(result, 'Visitor scanned booths listed'));
   });
 
+  export const  checkInVisitor = asyncHandler(async (req: Request, res: Response) => {
+    const { qrId } = qrIdParamSchema.parse(req.params);
+    const body = checkInBodySchema.parse(req.body);
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const result = await visitorService.checkInVisitor(qrId, body, authToken);
+    res.status(200).json(successResponse(result));
+  });

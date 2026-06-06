@@ -1,23 +1,14 @@
 import { customAlphabet } from 'nanoid';
-import { google } from 'googleapis';
 import mongoose from 'mongoose';
 import { ExhibitorBoothRepository } from '@/repository/exhibitorBooth.repository';
-import { VisitorCheckIn } from '@/model/visitorCheckIn.model';
-import { VisitorScannedBooth } from '@/model/visitorScannedBooth.model';
 import { EventRepository } from '@/repository/event.repository';
-import { AuthRepository } from '@/repository/auth.repository';
 import { ExhibitorDocumentRepository } from '@/repository/exhibitorDocument.repository';
-import { ExhibitorDocument } from '@/model/exhibitorDocument.model';
 import { ApiError } from '@/errors/ApiError';
 import { config } from '@/config/env';
 import {
   CreateBoothWithDocumentsInput,
   CreateEventWithBoothAndDocumentsInput,
 } from '@/types/zod/exhibitorBooth.schema';
-import { createOAuthClient } from '@/libs/oauth.client';
-import { DriveClient } from '@/libs/drive.client';
-import { User } from '@/model/auth.model';
-import { verifyToken } from '@/utils/jwt';
 import { anthropic } from '@/libs/anthropic';
 import { DOCUMENT_EXTRACTION_PROMPT } from '@/libs/prompts/documentExtraction.prompt';
 import { EventService } from './event.service';
@@ -31,7 +22,6 @@ export class ExhibitorBoothService {
   constructor(
     private _repository: ExhibitorBoothRepository,
     private _eventRepository: EventRepository,
-    private _authRepository: AuthRepository,
     private _docRepository: ExhibitorDocumentRepository,
     private _eventService: EventService
   ) {}
@@ -59,205 +49,6 @@ export class ExhibitorBoothService {
     const booth = await this.getBoothByQrId(qrId);
     return this._docRepository.listPublicByBoothId(booth._id);
   }
-
-  async checkInVisitor(
-    qrId: string,
-    visitorData: { name: string; email: string; phone?: string },
-    authToken?: string
-  ): Promise<{ alreadyCheckedIn: boolean; booth: any }> {
-    const booth = await this._repository.findByQrId(qrId);
-    if (!booth) {
-      throw ApiError.notFound('Booth not found');
-    }
-
-    const event = await this._eventRepository.findEventById(booth.eventId.toString());
-    if (!event) {
-      throw ApiError.notFound('Event not found');
-    }
-
-    const exhibitor = await this._authRepository.findUserByIdWithRefreshToken(
-      booth.ownerUserId.toString()
-    );
-    if (!exhibitor) {
-      throw new ApiError(412, 'Exhibitor account not found');
-    }
-
-    // Optional visitor user id (when scanning while signed in)
-    let visitorUserId: string | undefined;
-    if (authToken) {
-      try {
-        const payload = verifyToken(authToken);
-        visitorUserId = payload.id;
-      } catch {
-        // ignore — treat as anonymous check-in
-      }
-    }
-
-    // Exhibitor-side check-in (unique on boothId+email)
-    let alreadyCheckedIn = false;
-    try {
-      await VisitorCheckIn.create({
-        exhibitorBoothId: booth._id,
-        eventId: booth.eventId,
-        visitorUserId: visitorUserId ? new mongoose.Types.ObjectId(visitorUserId) : undefined,
-        name: visitorData.name,
-        email: visitorData.email,
-        phone: visitorData.phone,
-      });
-      await this._repository.incrementScanCount(booth._id.toString());
-    } catch (error: any) {
-      if (error?.code === 11000) {
-        alreadyCheckedIn = true;
-      } else {
-        throw error;
-      }
-    }
-
-    // Public documents — used both for visitor's record and for Drive sharing
-    const publicDocuments = await ExhibitorDocument.find({
-      exhibitorBoothId: booth._id,
-      isPublic: true,
-    });
-    const sharedDocUrls = publicDocuments
-      .map((d) => d.driveFileUrl)
-      .filter((url): url is string => !!url);
-
-    // Drive share — only when visitor is signed in with Google (best-effort; non-fatal)
-    if (
-      visitorUserId &&
-      exhibitor.googleRefreshToken &&
-      publicDocuments.length > 0
-    ) {
-      try {
-        await this.shareDocumentsWithVisitor(
-          publicDocuments,
-          exhibitor.googleRefreshToken,
-          visitorUserId,
-          visitorData.email
-        );
-      } catch (error) {
-        console.error('[CheckIn] doc sharing FAIL (non-fatal):', error);
-      }
-    }
-
-    // Visitor's scanned-booth record
-    if (visitorUserId) {
-      try {
-        await VisitorScannedBooth.updateOne(
-          { visitorUserId: new mongoose.Types.ObjectId(visitorUserId), qrId: booth.qrId },
-          {
-            $setOnInsert: {
-              visitorUserId: new mongoose.Types.ObjectId(visitorUserId),
-              exhibitorBoothId: booth._id,
-              qrId: booth.qrId,
-              boothName: booth.boothName,
-              eventName: event.name,
-              sharedDocUrls,
-            },
-          },
-          { upsert: true }
-        );
-      } catch (error) {
-        console.error('[CheckIn] visitor scanned-booth record FAIL (non-fatal):', error);
-      }
-    }
-
-    return {
-      alreadyCheckedIn,
-      booth: {
-        boothName: booth.boothName,
-        description: booth.description,
-        scanCount: alreadyCheckedIn ? booth.scanCount : booth.scanCount + 1,
-      },
-    };
-  }
-
-  private async shareDocumentsWithVisitor(
-    documents: any[],
-    exhibitorRefreshToken: string,
-    visitorUserId: string,
-    visitorEmail: string
-  ): Promise<void> {
-    if (documents.length === 0) return;
-
-    const visitor = await User.findById(visitorUserId).select(
-      '+googleRefreshToken meetSyncRootFolderId visitedBoothsFolderId'
-    );
-    if (!visitor?.googleRefreshToken) {
-      console.log('[CheckIn] visitor has no Google refresh token — skipping share');
-      return;
-    }
-
-    const visitorAuth = createOAuthClient(visitor.googleRefreshToken);
-    const driveClient = new DriveClient(visitorAuth);
-
-    let rootFolderId = visitor.meetSyncRootFolderId;
-    if (!rootFolderId) {
-      rootFolderId = await driveClient.ensureFolder(visitorAuth, 'MeetSync', null);
-    }
-    let sharedFolderId = visitor.visitedBoothsFolderId;
-    if (!sharedFolderId) {
-      sharedFolderId = await driveClient.ensureSharedBoothsFolder(visitorAuth, rootFolderId);
-    }
-    if (
-      rootFolderId !== visitor.meetSyncRootFolderId ||
-      sharedFolderId !== visitor.visitedBoothsFolderId
-    ) {
-      await User.updateOne(
-        { _id: visitor._id },
-        { meetSyncRootFolderId: rootFolderId, visitedBoothsFolderId: sharedFolderId }
-      );
-    }
-
-    const exhibitorAuth = createOAuthClient(exhibitorRefreshToken);
-    const exhibitorDrive = google.drive({ version: 'v3', auth: exhibitorAuth as any });
-
-    for (const doc of documents) {
-      if (!doc.driveFileId) continue;
-      try {
-        await exhibitorDrive.permissions.create({
-          fileId: doc.driveFileId,
-          sendNotificationEmail: false,
-          requestBody: {
-            type: 'user',
-            role: 'reader',
-            emailAddress: visitorEmail,
-          },
-        });
-      } catch (error: any) {
-        if (!error?.message?.includes('already')) {
-          console.error('[CheckIn] permission grant failed', {
-            fileName: doc.fileName,
-            message: error?.message,
-          });
-          continue;
-        }
-      }
-
-      try {
-        const existing = await driveClient.findShortcutToTarget(
-          visitorAuth,
-          doc.driveFileId,
-          sharedFolderId
-        );
-        if (!existing) {
-          await driveClient.createShortcutToFile(
-            visitorAuth,
-            doc.driveFileId,
-            doc.fileName,
-            sharedFolderId
-          );
-        }
-      } catch (error: any) {
-        console.error('[CheckIn] shortcut create failed', {
-          fileName: doc.fileName,
-          message: error?.message,
-        });
-      }
-    }
-  }
-
-
 
   async createBoothWithDocuments(
     userId: string,

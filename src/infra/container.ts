@@ -19,8 +19,15 @@ export const eventService = new EventService(_eventRepository)
 
 const _exhibitorDocumentRepository = new ExhibitorDocumentRepository()
 const _exhibitorBoothRepository= new ExhibitorBoothRepository()
-export const exhibitorBoothService = new ExhibitorBoothService(_exhibitorBoothRepository,_eventRepository,_authRepository,_exhibitorDocumentRepository, eventService)
+export const exhibitorBoothService = new ExhibitorBoothService(_exhibitorBoothRepository,_eventRepository,_exhibitorDocumentRepository, eventService)
 
-const  _visitorCheckInRepository = new VisitorCheckInRepository()
+const _visitorCheckInRepository = new VisitorCheckInRepository()
 const _visitorScannedBoothRepository = new VisitorScannedBoothRepository()
-export const visitorService = new VisitorService(_visitorScannedBoothRepository, _exhibitorDocumentRepository)
+export const visitorService = new VisitorService(
+  _visitorScannedBoothRepository,
+  _exhibitorDocumentRepository,
+  _exhibitorBoothRepository,
+  _eventRepository,
+  _authRepository,
+  _visitorCheckInRepository
+)

@@ -1,4 +1,4 @@
-import { checkInVisitor, getBoothByQrId, listPublicDocuments } from '@/controller/exhibitorBooth.controller';
+import { getBoothByQrId, listPublicDocuments } from '@/controller/exhibitorBooth.controller';
 import { Router } from 'express';
 
 const router = Router();
@@ -45,37 +45,5 @@ router.get('/:qrId', getBoothByQrId);
  */
 router.get('/:qrId/documents', listPublicDocuments);
 
-/**
- * @swagger
- * /public/exhibitor-booths/{qrId}/checkin:
- *   post:
- *     tags:
- *       - Public Exhibitor Booths
- *     summary: Visitor check-in to an exhibitor booth
- *     parameters:
- *       - in: path
- *         name: qrId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name, email]
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               phone:
- *                 type: string
- *     responses:
- *       200:
- *         description: Check-in successful
- */
-router.post('/:qrId/checkin', checkInVisitor);
 
 export default router;

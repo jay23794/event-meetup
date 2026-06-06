@@ -15,6 +15,21 @@ const generateQrId = customAlphabet(
   10
 );
 
+interface ProcessedExhibitorDoc {
+  id: mongoose.Types.ObjectId;
+  fileName: string;
+  fileType: 'card' | 'brochure';
+  extractedName?: string;
+  extractedCompany?: string;
+  extractedEmail?: string;
+  extractedPhone?: string;
+  extractedTitle?: string;
+  extractedWebsite?: string;
+  extractedAddress?: string;
+}
+
+type DocumentInput = CreateEventWithBoothAndDocumentsInput['documents'][number];
+
 export class ExhibitorBoothService {
   constructor(
     private _repository: ExhibitorBoothRepository,
@@ -87,88 +102,11 @@ export class ExhibitorBoothService {
       qrUrl,
     });
 
-    const processedDocs: Array<{
-      id: mongoose.Types.ObjectId;
-      fileName: string;
-      fileType: 'card' | 'brochure';
-      extractedName?: string;
-      extractedCompany?: string;
-      extractedEmail?: string;
-      extractedPhone?: string;
-      extractedTitle?: string;
-      extractedWebsite?: string;
-      extractedAddress?: string;
-    }> = [];
-
+    const boothId = booth._id.toString();
+    const processedDocs: ProcessedExhibitorDoc[] = [];
     for (const doc of payload.documents) {
-      try {
-        const response = await anthropic.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          messages: [
-            {
-              role: 'user',
-              content: `${DOCUMENT_EXTRACTION_PROMPT}\n\nOCR Text:\n${doc.rawText}`,
-            },
-          ],
-        });
-
-        const textContent = response.content.find((c) => c.type === 'text');
-        if (!textContent || textContent.type !== 'text') {
-          throw new ApiError(502, 'Anthropic API returned unexpected response');
-        }
-
-        const cleanText = textContent.text.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(cleanText);
-
-        const createdDoc = await this._docRepository.create({
-          ownerUserId: userId,
-          exhibitorBoothId: booth._id.toString(),
-          eventId,
-          driveFileId: doc.driveFileId,
-          driveFileUrl: doc.driveFileUrl,
-          fileName: doc.fileName,
-          fileType: doc.fileType,
-          mimeType: doc.mimeType,
-          sizeBytes: doc.sizeBytes,
-          extractedText: doc.rawText,
-          extractedName: parsed.name || undefined,
-          extractedCompany: parsed.company || undefined,
-          extractedTitle: parsed.title || undefined,
-          extractedPhone: parsed.phone || undefined,
-          extractedEmail: parsed.email || undefined,
-          extractedWebsite: parsed.website || undefined,
-          extractedLinkedin: parsed.linkedin || undefined,
-          extractedSocialMedia: Array.isArray(parsed.socialMedia)
-            ? parsed.socialMedia.filter(
-                (s: unknown): s is string => typeof s === 'string' && !!s.trim()
-              )
-            : undefined,
-          extractedAddress: parsed.address || undefined,
-          extractionStatus: 'success',
-          isPublic: doc.isPublic ?? true,
-        });
-
-        await this._repository.incrementDocumentCount(booth._id.toString());
-
-        processedDocs.push({
-          id: createdDoc._id,
-          fileName: createdDoc.fileName,
-          fileType: createdDoc.fileType,
-          extractedName: createdDoc.extractedName,
-          extractedCompany: createdDoc.extractedCompany,
-          extractedEmail: createdDoc.extractedEmail,
-          extractedPhone: createdDoc.extractedPhone,
-          extractedTitle: createdDoc.extractedTitle,
-          extractedWebsite: createdDoc.extractedWebsite,
-          extractedAddress: createdDoc.extractedAddress,
-        });
-      } catch (err) {
-        console.error('[CreateEventWithBoothAndDocuments] Document processing error:', {
-          fileName: doc.fileName,
-          errorMessage: err instanceof Error ? err.message : String(err),
-        });
-      }
+      const result = await this.extractAndPersistDocument(userId, eventId, boothId, doc);
+      if (result) processedDocs.push(result);
     }
 
     return {
@@ -189,6 +127,83 @@ export class ExhibitorBoothService {
       },
       documents: processedDocs,
     };
+  }
+
+  private async extractAndPersistDocument(
+    userId: string,
+    eventId: string,
+    boothId: string,
+    doc: DocumentInput
+  ): Promise<ProcessedExhibitorDoc | null> {
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [
+          {
+            role: 'user',
+            content: `${DOCUMENT_EXTRACTION_PROMPT}\n\nOCR Text:\n${doc.rawText}`,
+          },
+        ],
+      });
+
+      const textContent = response.content.find((c) => c.type === 'text');
+      if (!textContent || textContent.type !== 'text') {
+        throw new ApiError(502, 'Anthropic API returned unexpected response');
+      }
+
+      const cleanText = textContent.text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleanText);
+
+      const createdDoc = await this._docRepository.create({
+        ownerUserId: userId,
+        exhibitorBoothId: boothId,
+        eventId,
+        driveFileId: doc.driveFileId,
+        driveFileUrl: doc.driveFileUrl,
+        fileName: doc.fileName,
+        fileType: doc.fileType,
+        mimeType: doc.mimeType,
+        sizeBytes: doc.sizeBytes,
+        extractedText: doc.rawText,
+        extractedName: parsed.name || undefined,
+        extractedCompany: parsed.company || undefined,
+        extractedTitle: parsed.title || undefined,
+        extractedPhone: parsed.phone || undefined,
+        extractedEmail: parsed.email || undefined,
+        extractedWebsite: parsed.website || undefined,
+        extractedLinkedin: parsed.linkedin || undefined,
+        extractedSocialMedia: Array.isArray(parsed.socialMedia)
+          ? parsed.socialMedia.filter(
+              (s: unknown): s is string => typeof s === 'string' && !!s.trim()
+            )
+          : undefined,
+        extractedAddress: parsed.address || undefined,
+        extractionStatus: 'success',
+        isPublic: doc.isPublic ?? true,
+      });
+
+      await this._repository.incrementDocumentCount(boothId);
+
+      return {
+        id: createdDoc._id,
+        fileName: createdDoc.fileName,
+        fileType: createdDoc.fileType,
+        extractedName: createdDoc.extractedName,
+        extractedCompany: createdDoc.extractedCompany,
+        extractedEmail: createdDoc.extractedEmail,
+        extractedPhone: createdDoc.extractedPhone,
+        extractedTitle: createdDoc.extractedTitle,
+        extractedWebsite: createdDoc.extractedWebsite,
+        extractedAddress: createdDoc.extractedAddress,
+      };
+    } catch (err) {
+      console.error('[ExtractAndPersistDocument] Document processing error:', {
+        fileName: doc.fileName,
+        errorMessage: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
   }
 }
 

@@ -76,7 +76,7 @@ export class ExhibitorService {
   createEventWithBoothAndDocuments(
     payload: CreateEventWithBoothAndDocumentsPayload,
   ): Observable<CreateEventWithBoothAndDocumentsResponse> {
-    const url = `${environment.apiUrl}/exhibitor/events/create-with-booth-and-documents`;
+    const url = `${environment.apiUrl}/exhibitor/events/create`;
     return this.http
       .post<ApiResponseBody<CreateEventWithBoothAndDocumentsResponse>>(url, payload, {
         headers: this.authHeaders(),

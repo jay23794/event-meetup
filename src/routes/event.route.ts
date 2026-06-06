@@ -26,7 +26,7 @@ router.get('/', listEvents);
 
 /**
  * @swagger
- * /api/v1/exhibitor/events/create-with-booth-and-documents:
+ * /api/v1/exhibitor/events/create:
  *   post:
  *     tags:
  *       - Exhibitor Events
@@ -56,6 +56,6 @@ router.get('/', listEvents);
  *       412: { description: Google account not connected }
  *       502: { description: Extraction failed }
  */
-router.post('/create-with-booth-and-documents', createEventWithBoothAndDocuments);
+router.post('/create', createEventWithBoothAndDocuments);
 
 export default router;

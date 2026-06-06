@@ -89,7 +89,7 @@ This is the only fully-built feature and the reference for how to add new featur
    - The worker and pdfjs module are lazy-initialized once and reused (`workerPromise`, `pdfjsPromise`).
    - Progress is reported through a `ProgressCallback` so the component can display per-file status.
    - Files are processed sequentially through a `Promise` chain (`extractionQueue`) so only one OCR runs at a time.
-3. On submit, `ExhibitorService.createEventWithBoothAndDocuments` POSTs the extracted text + metadata to `POST {apiUrl}/exhibitor/events/create-with-booth-and-documents`. The server uploads the actual files to Drive and persists the structured fields.
+3. On submit, `ExhibitorService.createEventWithBoothAndDocuments` POSTs the extracted text + metadata to `POST {apiUrl}/exhibitor/events/create`. The server uploads the actual files to Drive and persists the structured fields.
 4. **`QrStateService`** (in-memory signal) hands the response (event, booth, documents) to `QrComponent` via `router.navigate(['/home/exhibitor/qr'])`. **There is no route param or query string** — if the user reloads `/home/exhibitor/qr`, the state is gone. Keep this in mind when wiring deep links.
 5. `QrComponent` uses `QrService` (a thin wrapper over the `qrcode` package) to render the booth's `qrUrl` as a data URL.
 

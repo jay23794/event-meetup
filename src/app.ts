@@ -14,7 +14,7 @@ import { errorHandler } from '@/errors/app.error.handler';
 import { NotFoundError } from '@/errors';
 import { ApiResponse } from '@/utils/ApiResponse';
 import authRoutes from '@/routes/auth.routes';
-import exhibitorEventRoutes from '@/routes/exhibitorEvent.routes';
+import exhibitorEventRoutes from '@/routes/event.route';
 import exhibitorBoothRoutes from '@/routes/exhibitorBooth.routes';
 import exhibitorBoothPublicRoutes from '@/routes/exhibitorBooth.public.routes';
 import exhibitorDocumentRoutes from '@/routes/exhibitorDocument.routes';

@@ -1,5 +1,5 @@
+import { checkInVisitor, getBoothByQrId, listPublicDocuments } from '@/controller/exhibitorBooth.controller';
 import { Router } from 'express';
-import { exhibitorBoothController as controller } from '@/controller/exhibitorBooth.controller';
 
 const router = Router();
 
@@ -24,7 +24,7 @@ const router = Router();
  *       404:
  *         description: Booth not found
  */
-router.get('/:qrId', controller.getBoothByQrId);
+router.get('/:qrId', getBoothByQrId);
 
 /**
  * @swagger
@@ -43,7 +43,7 @@ router.get('/:qrId', controller.getBoothByQrId);
  *       200:
  *         description: Documents retrieved
  */
-router.get('/:qrId/documents', controller.listPublicDocuments);
+router.get('/:qrId/documents', listPublicDocuments);
 
 /**
  * @swagger
@@ -76,6 +76,6 @@ router.get('/:qrId/documents', controller.listPublicDocuments);
  *       200:
  *         description: Check-in successful
  */
-router.post('/:qrId/checkin', controller.checkInVisitor);
+router.post('/:qrId/checkin', checkInVisitor);
 
 export default router;

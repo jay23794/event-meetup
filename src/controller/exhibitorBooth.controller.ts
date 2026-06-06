@@ -14,15 +14,15 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-const eventIdParamSchema = z.object({
+export const eventIdParamSchema = z.object({
   eventId: z.string().min(1, 'eventId is required'),
 });
 
-const qrIdParamSchema = z.object({
+export const qrIdParamSchema = z.object({
   qrId: z.string().min(1, 'qrId is required'),
 });
 
-const checkInBodySchema = z.object({
+export const checkInBodySchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Valid email is required'),
   phone: z.string().optional(),
@@ -57,15 +57,7 @@ const checkInBodySchema = z.object({
     res.status(200).json(successResponse({ documents }));
   });
 
-  // createEventWithBoothAndDocuments = asyncHandler(
-  //   async (req: AuthenticatedRequest, res: Response) => {
-  //     const userId = req.user?.id;
-  //     if (!userId) throw ApiError.unauthorized();
-  //     const body = createEventWithBoothAndDocumentsSchema.parse(req.body);
-  //     const result = await exhibitorBoothService.createEventWithBoothAndDocuments(userId, body);
-  //     res.status(201).json(successResponse(result));
-  //   }
-  // );
+
 
 
 

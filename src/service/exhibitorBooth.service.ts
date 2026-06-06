@@ -5,10 +5,7 @@ import { EventRepository } from '@/repository/event.repository';
 import { ExhibitorDocumentRepository } from '@/repository/exhibitorDocument.repository';
 import { ApiError } from '@/errors/ApiError';
 import { config } from '@/config/env';
-import {
-  CreateBoothWithDocumentsInput,
-  CreateEventWithBoothAndDocumentsInput,
-} from '@/types/zod/exhibitorBooth.schema';
+import { CreateEventWithBoothAndDocumentsInput } from '@/types/zod/exhibitorBooth.schema';
 import { anthropic } from '@/libs/anthropic';
 import { DOCUMENT_EXTRACTION_PROMPT } from '@/libs/prompts/documentExtraction.prompt';
 import { EventService } from './event.service';
@@ -67,29 +64,16 @@ export class ExhibitorBoothService {
     return this._docRepository.listPublicByBoothId(booth._id);
   }
 
-  async createBoothWithDocuments(
+  async createEventWithBoothAndDocuments(
     userId: string,
-    eventId: string,
-    payload: CreateBoothWithDocumentsInput & {
-      documents: Array<{
-        rawText: string;
-        fileType: 'card' | 'brochure';
-        fileName: string;
-        driveFileId?: string;
-        driveFileUrl?: string;
-        mimeType?: string;
-        sizeBytes?: number;
-        isPublic?: boolean;
-      }>;
-    }
+    payload: CreateEventWithBoothAndDocumentsInput
   ) {
-    const event = await this._eventRepository.findEventById(eventId);
-    if (!event) {
-      throw ApiError.notFound('Event not found');
-    }
-    if (event.ownerUserId.toString() !== userId) {
-      throw ApiError.forbidden('You do not have access to this event');
-    }
+    const event = await this._eventService.createEvent(userId, {
+      name: payload.eventName,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+    });
+    const eventId = event._id.toString();
 
     const qrId = generateQrId();
     const qrUrl = `${config.PUBLIC_APP_URL}/exhibitor/${qrId}`;
@@ -180,40 +164,12 @@ export class ExhibitorBoothService {
           extractedAddress: createdDoc.extractedAddress,
         });
       } catch (err) {
-        console.error('[CreateBoothWithDocuments] Document processing error:', {
+        console.error('[CreateEventWithBoothAndDocuments] Document processing error:', {
           fileName: doc.fileName,
           errorMessage: err instanceof Error ? err.message : String(err),
         });
       }
     }
-
-    return {
-      booth: {
-        id: booth._id,
-        boothName: booth.boothName,
-        description: booth.description,
-        qrId: booth.qrId,
-        qrUrl: booth.qrUrl,
-      },
-      documents: processedDocs,
-    };
-  }
-
-  async createEventWithBoothAndDocuments(
-    userId: string,
-    payload: CreateEventWithBoothAndDocumentsInput
-  ) {
-    const event = await this._eventService.createEvent(userId, {
-      name: payload.eventName,
-      startDate: payload.startDate,
-      endDate: payload.endDate,
-    });
-
-    const boothResult = await this.createBoothWithDocuments(userId, event._id.toString(), {
-      boothName: payload.boothName,
-      description: payload.description,
-      documents: payload.documents,
-    });
 
     return {
       event: {
@@ -224,7 +180,14 @@ export class ExhibitorBoothService {
         driveEventFolderId: event.driveEventFolderId,
         driveImagesFolderId: event.driveImagesFolderId,
       },
-      ...boothResult,
+      booth: {
+        id: booth._id,
+        boothName: booth.boothName,
+        description: booth.description,
+        qrId: booth.qrId,
+        qrUrl: booth.qrUrl,
+      },
+      documents: processedDocs,
     };
   }
 }

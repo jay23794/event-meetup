@@ -23,12 +23,6 @@ const documentSchema = z.object({
   isPublic: z.boolean().optional(),
 });
 
-export const createBoothWithDocumentsSchema = z.object({
-  boothName: z.string().min(1, 'Booth name required').max(200),
-  description: z.string().min(1, 'Description required').max(5000),
-  documents: z.array(documentSchema).min(1, 'At least one document is required'),
-});
-
 export const createEventWithBoothAndDocumentsSchema = z.object({
   eventName: z.string().min(1, 'Event name is required'),
   startDate: dateTimeOrDateString.optional(),
@@ -38,7 +32,6 @@ export const createEventWithBoothAndDocumentsSchema = z.object({
   documents: z.array(documentSchema).min(1, 'At least one document is required'),
 });
 
-export type CreateBoothWithDocumentsInput = z.infer<typeof createBoothWithDocumentsSchema>;
 export type CreateEventWithBoothAndDocumentsInput = z.infer<
   typeof createEventWithBoothAndDocumentsSchema
 >;

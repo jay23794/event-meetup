@@ -4,6 +4,7 @@ import { ApiError } from '@/errors/ApiError';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { successResponse } from '@/utils/ApiResponse';
 import { exhibitorBoothService } from '@/infra/container';
+import { createEventWithBoothAndDocumentsSchema } from '@/types/zod/exhibitorBooth.schema';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -56,6 +57,16 @@ export const checkInBodySchema = z.object({
     const documents = await exhibitorBoothService.listPublicDocumentsByQrId(qrId);
     res.status(200).json(successResponse({ documents }));
   });
+
+export const createEventWithBoothAndDocuments = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) throw ApiError.unauthorized();
+    const body = createEventWithBoothAndDocumentsSchema.parse(req.body);
+    const result = await exhibitorBoothService.createEventWithBoothAndDocuments(userId, body);
+    res.status(201).json(successResponse(result, 'Event, booth and documents created'));
+  }
+);
 
 
 

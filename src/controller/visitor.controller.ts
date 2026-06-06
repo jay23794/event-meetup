@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { exhibitorBoothService } from '@/service/exhibitorBooth.service';
 import { ApiError } from '@/errors/ApiError';
 import { successResponse } from '@/utils/ApiResponse';
 import { asyncHandler } from '@/utils/asyncHandler';
+import { VisitorService } from '@/service/visitor.service';
+
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -19,17 +20,15 @@ const listScannedBoothsQuerySchema = z.object({
   cursor: z.coerce.number().int().nonnegative().optional(),
 });
 
-export class VisitorController {
-  listScannedBooths = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+
+  export const listScannedBooths = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) throw ApiError.unauthorized();
     const { limit, cursor } = listScannedBoothsQuerySchema.parse(req.query);
-    const result = await exhibitorBoothService.listVisitorScannedBooths(userId, {
+    const result = await VisitorService.listVisitorScannedBooths(userId, {
       limit,
       cursor,
     });
     res.status(200).json(successResponse(result, 'Visitor scanned booths listed'));
   });
-}
 
-export const visitorController = new VisitorController();

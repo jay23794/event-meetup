@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { exhibitorBoothService } from '@/service/exhibitorBooth.service';
 import { ApiError } from '@/errors/ApiError';
 import { asyncHandler } from '@/utils/asyncHandler';
 import { successResponse } from '@/utils/ApiResponse';
-import { createEventWithBoothAndDocumentsSchema } from '@/types/zod/exhibitorBooth.schema';
+import { exhibitorBoothService } from '@/infra/container';
 
 export interface AuthenticatedRequest extends Request {
   user?: {

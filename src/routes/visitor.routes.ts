@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { visitorController as controller } from '@/controller/visitor.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import { listScannedBooths } from '@/controller/visitor.controller';
 
 const router = Router();
 
@@ -19,6 +19,6 @@ router.use(authMiddleware);
  *       200:
  *         description: Scanned booths listed
  */
-router.get('/scanned-booths', controller.listScannedBooths);
+router.get('/scanned-booths', listScannedBooths);
 
 export default router;

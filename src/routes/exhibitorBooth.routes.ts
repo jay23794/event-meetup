@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { exhibitorBoothController as controller } from '@/controller/exhibitorBooth.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import { listByEvent } from '@/controller/exhibitorBooth.controller';
 
 const router = Router({ mergeParams: true });
 
@@ -29,6 +29,6 @@ router.use(authMiddleware);
  *       404:
  *         description: Event not found
  */
-router.get('/events/:eventId/booths', controller.listByEvent);
+router.get('/events/:eventId/booths', listByEvent);
 
 export default router;

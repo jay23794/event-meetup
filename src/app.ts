@@ -17,7 +17,6 @@ import authRoutes from '@/routes/auth.routes';
 import exhibitorEventRoutes from '@/routes/event.route';
 import exhibitorBoothRoutes from '@/routes/exhibitorBooth.routes';
 import exhibitorBoothPublicRoutes from '@/routes/exhibitorBooth.public.routes';
-import exhibitorDocumentRoutes from '@/routes/exhibitorDocument.routes';
 import visitorRoutes from '@/routes/visitor.routes';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -101,7 +100,6 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/v1/exhibitor/events', exhibitorEventRoutes);
 app.use('/api/v1/exhibitor', exhibitorBoothRoutes);
-app.use('/api/v1/exhibitor', exhibitorDocumentRoutes);
 app.use('/api/v1/visitor', visitorRoutes);
 
 // Static legal pages — served from public/<slug>/index.html as plain HTML so

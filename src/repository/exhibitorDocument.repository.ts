@@ -56,11 +56,15 @@ export class ExhibitorDocumentRepository {
     }
   }
 
-  async listByBooth(boothId: string, fileType?: 'card' | 'brochure'): Promise<IExhibitorDocument[]> {
+  async listByBoothIds(
+    boothIds: Array<mongoose.Types.ObjectId | string>,
+    fileType?: 'card' | 'brochure'
+  ): Promise<IExhibitorDocument[]> {
     try {
-      const query: Record<string, unknown> = {
-        exhibitorBoothId: new mongoose.Types.ObjectId(boothId),
-      };
+      const ids = boothIds.map((b) =>
+        typeof b === 'string' ? new mongoose.Types.ObjectId(b) : b
+      );
+      const query: Record<string, unknown> = { exhibitorBoothId: { $in: ids } };
       if (fileType) {
         query.fileType = fileType;
       }

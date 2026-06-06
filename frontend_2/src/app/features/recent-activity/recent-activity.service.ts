@@ -6,7 +6,6 @@ import {
   forkJoin,
   map,
   of,
-  switchMap,
   throwError,
 } from 'rxjs';
 import { environment } from '@env/environment';
@@ -102,15 +101,6 @@ export interface ActivityItem {
   contacts?: VisitedBoothContacts;
 }
 
-interface RawBooth {
-  _id?: string;
-  id?: string;
-  boothName: string;
-  description?: string;
-  qrId: string;
-  qrUrl: string;
-}
-
 interface RawDocument {
   _id?: string;
   id?: string;
@@ -125,12 +115,18 @@ interface RawDocument {
   extractedAddress?: string;
 }
 
-interface ListBoothsResponse {
-  booths: RawBooth[];
+interface RawBooth {
+  _id?: string;
+  id?: string;
+  boothName: string;
+  description?: string;
+  qrId: string;
+  qrUrl: string;
+  documents?: RawDocument[];
 }
 
-interface ListDocumentsResponse {
-  documents: RawDocument[];
+interface ListBoothsResponse {
+  booths: RawBooth[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -201,37 +197,19 @@ export class RecentActivityService {
         headers: this.authHeaders(),
       })
       .pipe(
-        switchMap((res) => {
-          const booths = res.data?.booths ?? [];
-          const firstBooth = booths[0];
+        map<ApiResponseBody<ListBoothsResponse>, QrPageData>((res) => {
+          const firstBooth = res.data?.booths?.[0];
           if (!firstBooth) {
-            return throwError(
-              () => new Error('This event has no booths yet.'),
-            );
+            throw new Error('This event has no booths yet.');
           }
-          const booth = this.normalizeBooth(firstBooth);
-          return this.fetchBoothDocuments(booth.id).pipe(
-            map<ProcessedDocument[], QrPageData>((documents) => ({
-              event: this.toCreatedEvent(eventMeta),
-              booth,
-              documents,
-            })),
-          );
+          return {
+            event: this.toCreatedEvent(eventMeta),
+            booth: this.normalizeBooth(firstBooth),
+            documents: (firstBooth.documents ?? []).map((d) =>
+              this.normalizeDocument(d),
+            ),
+          };
         }),
-      );
-  }
-
-  private fetchBoothDocuments(boothId: string): Observable<ProcessedDocument[]> {
-    const url = `${environment.apiUrl}/exhibitor/booths/${boothId}/documents`;
-    return this.http
-      .get<ApiResponseBody<ListDocumentsResponse>>(url, {
-        headers: this.authHeaders(),
-      })
-      .pipe(
-        map((res) =>
-          (res.data?.documents ?? []).map((d) => this.normalizeDocument(d)),
-        ),
-        catchError(() => of<ProcessedDocument[]>([])),
       );
   }
 

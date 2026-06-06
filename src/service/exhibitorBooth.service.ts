@@ -26,7 +26,7 @@ export class ExhibitorBoothService {
     private _eventService: EventService
   ) {}
 
-  async listByEvent(userId: string, eventId: string) {
+  async listByEvent(userId: string, eventId: string, fileType?: 'card' | 'brochure') {
     const event = await this._eventRepository.findEventById(eventId);
     if (!event) {
       throw ApiError.notFound('Event not found');
@@ -34,7 +34,24 @@ export class ExhibitorBoothService {
     if (event.ownerUserId.toString() !== userId) {
       throw ApiError.forbidden('You do not have access to this event');
     }
-    return this._repository.listByEvent(eventId);
+    const booths = await this._repository.listByEvent(eventId);
+    if (booths.length === 0) return [];
+
+    const boothIds = booths.map((b) => b._id);
+    const documents = await this._docRepository.listByBoothIds(boothIds, fileType);
+
+    const docsByBooth = new Map<string, typeof documents>();
+    for (const doc of documents) {
+      const key = doc.exhibitorBoothId.toString();
+      const bucket = docsByBooth.get(key);
+      if (bucket) bucket.push(doc);
+      else docsByBooth.set(key, [doc]);
+    }
+
+    return booths.map((booth) => ({
+      ...booth.toObject(),
+      documents: docsByBooth.get(booth._id.toString()) ?? [],
+    }));
   }
 
   async getBoothByQrId(qrId: string) {

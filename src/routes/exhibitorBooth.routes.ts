@@ -12,18 +12,24 @@ router.use(authMiddleware);
  *   get:
  *     tags:
  *       - Exhibitor Booths
- *     summary: List exhibitor booths for an event
+ *     summary: List exhibitor booths for an event (each booth includes its documents)
  *     parameters:
  *       - in: path
  *         name: eventId
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: fileType
+ *         schema:
+ *           type: string
+ *           enum: [card, brochure]
+ *         description: Optional filter applied to each booth's documents
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Exhibitor booths listed
+ *         description: Exhibitor booths listed with embedded documents
  *       403:
  *         description: Forbidden
  *       404:

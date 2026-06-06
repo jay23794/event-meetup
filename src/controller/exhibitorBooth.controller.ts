@@ -19,6 +19,10 @@ export const eventIdParamSchema = z.object({
   eventId: z.string().min(1, 'eventId is required'),
 });
 
+const listByEventQuerySchema = z.object({
+  fileType: z.enum(['card', 'brochure']).optional(),
+});
+
 export const qrIdParamSchema = z.object({
   qrId: z.string().min(1, 'qrId is required'),
 });
@@ -34,7 +38,8 @@ export const checkInBodySchema = z.object({
     const userId = req.user?.id;
     if (!userId) throw ApiError.unauthorized();
     const { eventId } = eventIdParamSchema.parse(req.params);
-    const booths = await exhibitorBoothService.listByEvent(userId, eventId);
+    const { fileType } = listByEventQuerySchema.parse(req.query);
+    const booths = await exhibitorBoothService.listByEvent(userId, eventId, fileType);
     res.status(200).json(successResponse({ booths }));
   });
 

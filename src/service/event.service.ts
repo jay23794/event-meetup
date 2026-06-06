@@ -4,6 +4,7 @@ import { createOAuthClient } from '@/libs/oauth.client';
 import { CreateEventInput } from '@/types/zod/event.schema';
 import { DriveService } from '@/service/drive.service';
 
+
 export class EventService {
   constructor(private _repository: EventRepository ) {}
 
@@ -45,6 +46,7 @@ export class EventService {
 
     return event;
   }
+
 }
 
 

@@ -1,15 +1,12 @@
 import { customAlphabet } from 'nanoid';
 import { google } from 'googleapis';
 import mongoose from 'mongoose';
-import { ExhibitorBoothRepository, exhibitorBoothRepository } from '@/repository/exhibitorBooth.repository';
+import { ExhibitorBoothRepository } from '@/repository/exhibitorBooth.repository';
 import { VisitorCheckIn } from '@/model/visitorCheckIn.model';
 import { VisitorScannedBooth } from '@/model/visitorScannedBooth.model';
-import { EventRepository, eventRepository } from '@/repository/event.repository';
-import { AuthRepository, authRepository } from '@/repository/auth.repository';
-import {
-  ExhibitorDocumentRepository,
-  exhibitorDocumentRepository,
-} from '@/repository/exhibitorDocument.repository';
+import { EventRepository } from '@/repository/event.repository';
+import { AuthRepository } from '@/repository/auth.repository';
+import { ExhibitorDocumentRepository } from '@/repository/exhibitorDocument.repository';
 import { ExhibitorDocument } from '@/model/exhibitorDocument.model';
 import { ApiError } from '@/errors/ApiError';
 import { config } from '@/config/env';
@@ -24,7 +21,6 @@ import { verifyToken } from '@/utils/jwt';
 import { anthropic } from '@/libs/anthropic';
 import { DOCUMENT_EXTRACTION_PROMPT } from '@/libs/prompts/documentExtraction.prompt';
 import { EventService } from './event.service';
-import { eventService } from '@/infra/container';
 
 const generateQrId = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -33,10 +29,11 @@ const generateQrId = customAlphabet(
 
 export class ExhibitorBoothService {
   constructor(
-    private _repository: ExhibitorBoothRepository = exhibitorBoothRepository,
-    private _eventRepository: EventRepository = eventRepository,
-    private _authRepository: AuthRepository = authRepository,
-    private _docRepository: ExhibitorDocumentRepository = exhibitorDocumentRepository
+    private _repository: ExhibitorBoothRepository,
+    private _eventRepository: EventRepository,
+    private _authRepository: AuthRepository,
+    private _docRepository: ExhibitorDocumentRepository,
+    private _eventService: EventService
   ) {}
 
   async listByEvent(userId: string, eventId: string) {
@@ -394,34 +391,34 @@ export class ExhibitorBoothService {
     };
   }
 
-  // async createEventWithBoothAndDocuments(
-  //   userId: string,
-  //   payload: CreateEventWithBoothAndDocumentsInput
-  // ) {
-  //   const event = await this._eventService.createEvent(userId, {
-  //     name: payload.eventName,
-  //     startDate: payload.startDate,
-  //     endDate: payload.endDate,
-  //   });
+  async createEventWithBoothAndDocuments(
+    userId: string,
+    payload: CreateEventWithBoothAndDocumentsInput
+  ) {
+    const event = await this._eventService.createEvent(userId, {
+      name: payload.eventName,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+    });
 
-  //   const boothResult = await this.createBoothWithDocuments(userId, event._id.toString(), {
-  //     boothName: payload.boothName,
-  //     description: payload.description,
-  //     documents: payload.documents,
-  //   });
+    const boothResult = await this.createBoothWithDocuments(userId, event._id.toString(), {
+      boothName: payload.boothName,
+      description: payload.description,
+      documents: payload.documents,
+    });
 
-  //   return {
-  //     event: {
-  //       id: event._id,
-  //       name: event.name,
-  //       startDate: event.startDate,
-  //       endDate: event.endDate,
-  //       driveEventFolderId: event.driveEventFolderId,
-  //       driveImagesFolderId: event.driveImagesFolderId,
-  //     },
-  //     ...boothResult,
-  //   };
-  // }
+    return {
+      event: {
+        id: event._id,
+        name: event.name,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        driveEventFolderId: event.driveEventFolderId,
+        driveImagesFolderId: event.driveImagesFolderId,
+      },
+      ...boothResult,
+    };
+  }
 }
 
 

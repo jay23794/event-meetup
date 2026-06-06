@@ -42,16 +42,19 @@ export class VisitorScannedBoothRepository {
     }
   }
 
-  async listByVisitorPaginated(
+  async listByVisitorWithCursor(
     visitorUserId: string,
-    opts: { skip: number; limit: number }
+    opts: { cursor?: string; limit: number }
   ): Promise<IVisitorScannedBooth[]> {
     try {
-      return (await VisitorScannedBooth.find({
+      const query: Record<string, unknown> = {
         visitorUserId: new mongoose.Types.ObjectId(visitorUserId),
-      })
-        .sort({ createdAt: -1 })
-        .skip(opts.skip)
+      };
+      if (opts.cursor && mongoose.Types.ObjectId.isValid(opts.cursor)) {
+        query._id = { $lt: new mongoose.Types.ObjectId(opts.cursor) };
+      }
+      return (await VisitorScannedBooth.find(query)
+        .sort({ _id: -1 })
         .limit(opts.limit)
         .lean()) as unknown as IVisitorScannedBooth[];
     } catch (error) {

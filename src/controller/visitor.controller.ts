@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { ApiError } from '@/errors/ApiError';
 import { successResponse } from '@/utils/ApiResponse';
 import { asyncHandler } from '@/utils/asyncHandler';
-import { VisitorService } from '@/service/visitor.service';
+import { visitorService } from '@/infra/container';
+
 
 
 interface AuthenticatedRequest extends Request {
@@ -17,7 +18,7 @@ interface AuthenticatedRequest extends Request {
 
 const listScannedBoothsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional(),
-  cursor: z.coerce.number().int().nonnegative().optional(),
+  cursor: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
 });
 
 
@@ -25,7 +26,7 @@ const listScannedBoothsQuerySchema = z.object({
     const userId = req.user?.id;
     if (!userId) throw ApiError.unauthorized();
     const { limit, cursor } = listScannedBoothsQuerySchema.parse(req.query);
-    const result = await VisitorService.listVisitorScannedBooths(userId, {
+    const result = await visitorService.listVisitorScannedBooths(userId, {
       limit,
       cursor,
     });
